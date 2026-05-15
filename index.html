@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard GVD LPS - Google Sheets Sem Dados Genéricos</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --yellow: #f59e0b;
+      --red: #dc2626;
+      --purple: #7c3aed;
+      --gray: #64748b;
+      --shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .header-title h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 2vw, 2rem);
+      color: #0f172a;
+    }
+
+    .header-title p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      font-size: 0.83rem;
+      font-weight: 600;
+    }
+
+    .pill strong { color: var(--text); }
+
+    .button {
+      border: 0;
+      background: var(--blue);
+      color: #fff;
+      padding: 9px 12px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .button:hover { transform: translateY(-1px); opacity: 0.95; }
+    .button.secondary { background: #e2e8f0; color: #0f172a; }
+    .button.danger { background: var(--red); }
+
+    .active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: -4px 0 14px;
+    }
+
+    .filter-chip {
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1e40af;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    .filter-chip:hover { background: #dbeafe; }
+
+    .filter-chip.clear {
+      border-color: #fecaca;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .click-row { cursor: pointer; }
+    .click-row:hover td { background: #eaf2ff !important; }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .filter-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+
+    select, input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px;
+      color: var(--text);
+      background: #fff;
+      font-size: 0.92rem;
+      outline: none;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+      min-height: 112px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: var(--blue);
+    }
+
+    .kpi-card.green::before { background: var(--green); }
+    .kpi-card.yellow::before { background: var(--yellow); }
+    .kpi-card.red::before { background: var(--red); }
+    .kpi-card.purple::before { background: var(--purple); }
+    .kpi-card.gray::before { background: var(--gray); }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 1.85rem;
+      line-height: 1;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .kpi-help {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.25;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 10px;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+
+    .card-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.3;
+    }
+
+    .scroll {
+      overflow: auto;
+      max-height: 330px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      min-width: 760px;
+    }
+
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    tr:hover td { background: #f8fafc; }
+    tfoot td { background: #f1f5f9; font-weight: 800; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.blue { background: var(--blue); }
+    .badge.green { background: var(--green); }
+    .badge.yellow { background: var(--yellow); color: #2b1700; }
+    .badge.red { background: var(--red); }
+    .badge.purple { background: var(--purple); }
+    .badge.gray { background: var(--gray); }
+
+    .ready-list {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(38px, 1fr));
+      gap: 4px;
+    }
+
+    .ready-dot {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 8px;
+      padding: 4px;
+      font-size: 0.68rem;
+      font-weight: 900;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      cursor: default;
+    }
+
+    .ready-dot.ok {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+
+    .chart-box {
+      height: 285px;
+      position: relative;
+    }
+
+    .chart-box.small { height: 230px; }
+
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .kanban-col {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      min-height: 190px;
+    }
+
+    .kanban-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      align-items: center;
+      margin: 0 0 8px;
+      font-size: 0.86rem;
+      color: #0f172a;
+    }
+
+    .task {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+    }
+
+    .task strong {
+      display: block;
+      font-size: 0.82rem;
+      margin-bottom: 3px;
+    }
+
+    .task span {
+      color: var(--muted);
+      font-size: 0.74rem;
+      line-height: 1.25;
+    }
+
+    .alert-box {
+      display: grid;
+      gap: 8px;
+    }
+
+    .alert {
+      border-left: 5px solid var(--yellow);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fffbeb;
+      color: #78350f;
+      font-size: 0.86rem;
+      line-height: 1.35;
+    }
+
+    .alert.red {
+      border-left-color: var(--red);
+      background: #fef2f2;
+      color: #7f1d1d;
+    }
+
+    .alert.green {
+      border-left-color: var(--green);
+      background: #f0fdf4;
+      color: #14532d;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 0.86rem;
+      padding: 12px;
+    }
+
+    .note {
+      background: #eef6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius);
+      padding: 12px;
+      color: #1e3a8a;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    .note code {
+      background: rgba(37, 99, 235, 0.09);
+      border-radius: 6px;
+      padding: 2px 5px;
+      color: #1e40af;
+    }
+
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .muted { color: var(--muted); }
+    .nowrap { white-space: nowrap; }
+    .hidden { display: none !important; }
+
+    @media (max-width: 1200px) {
+      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .filters { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 720px) {
+      .app { padding: 10px; }
+      .header { grid-template-columns: 1fr; }
+      .header-actions { justify-content: flex-start; }
+      .filters { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: 1fr; }
+      .card { padding: 11px; }
+      table { font-size: 0.78rem; }
+      th, td { padding: 8px; }
+      .kanban { grid-template-columns: repeat(5, 80vw); }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .button, .filters, .note { display: none; }
+      .card, .kpi-card { box-shadow: none; break-inside: avoid; }
+      .scroll { max-height: none; overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="header">
+      <div class="header-title">
+        <h1>Gestão Visual Digital — Last Planner System</h1>
+        <p>Modelo para controle de médio prazo, restrições, plano semanal, PPC e causas de não conclusão.</p>
+      </div>
+      <div class="header-actions">
+        <span class="pill">Fonte: <strong id="fonte-dados">Simulada</strong></span>
+        <span class="pill">Atualizado: <strong id="data-atualizacao">--</strong></span>
+        <button class="button secondary" id="btn-limpar">Limpar filtros</button>
+        <button class="button" id="btn-exportar">Exportar visão CSV</button>
+      </div>
+    </section>
+
+    <section class="note">
+      <strong>Preparado para Google Sheets:</strong> esta versão está sem dados genéricos. O painel só exibirá informações depois que as URLs CSV das abas do Google Sheets forem coladas no objeto <code>CONFIG.googleSheetsCsv</code>. O efetivo usa apenas a coluna <code>trabalhadores</code>. Depois, basta publicar cada aba da planilha como CSV e preencher as URLs no objeto <code>CONFIG.googleSheetsCsv</code>. As abas previstas são: <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code> e <code>Diario_Obra</code>.<br><strong>Interatividade:</strong> clique nos gráficos, nas legendas ou nas linhas de efetivo para filtrar automaticamente o painel.
+    </section>
+
+    <section class="filters" aria-label="Filtros do dashboard">
+      <div class="filter-card">
+        <label for="filtro-semana">Semana</label>
+        <select id="filtro-semana"></select>
+      </div>
+      <div class="filter-card">
+        <label for="filtro-fornecedor">Fornecedor</label>
+        <select id="filtro-fornecedor"></select>
+      </div>
+      <div class="filter-card">
+        <label for="filtro-local">Local / Frente</label>
+        <select id="filtro-local"></select>
+      </div>
+      <div class="filter-card">
+        <label for="filtro-disciplina">Disciplina</label>
+        <select id="filtro-disciplina"></select>
+      </div>
+      <div class="filter-card">
+        <label for="busca">Busca rápida</label>
+        <input id="busca" type="search" placeholder="Atividade, restrição, responsável..." />
+      </div>
+    </section>
+
+    <section id="filtros-ativos" class="active-filters hidden" aria-label="Filtros ativos"></section>
+
+    <section class="kpi-grid" aria-label="Indicadores principais">
+      <article class="kpi-card green">
+        <div class="kpi-label">PPC semanal</div>
+        <div class="kpi-value" id="kpi-ppc">0%</div>
+        <div class="kpi-help">Tarefas concluídas / tarefas prometidas.</div>
+      </article>
+      <article class="kpi-card purple">
+        <div class="kpi-label">PPC ponderado</div>
+        <div class="kpi-value" id="kpi-ppc-pond">0%</div>
+        <div class="kpi-help">Peso concluído / peso planejado.</div>
+      </article>
+      <article class="kpi-card">
+        <div class="kpi-label">Meta do mês</div>
+        <div class="kpi-value" id="kpi-meta-mes">0%</div>
+        <div class="kpi-help">Soma dos pesos dos pacotes filtrados.</div>
+      </article>
+      <article class="kpi-card green">
+        <div class="kpi-label">Pacotes aptos</div>
+        <div class="kpi-value" id="kpi-aptos">0/0</div>
+        <div class="kpi-help">Pacotes sem restrição impeditiva.</div>
+      </article>
+      <article class="kpi-card red">
+        <div class="kpi-label">Restrições abertas</div>
+        <div class="kpi-value" id="kpi-restricoes">0</div>
+        <div class="kpi-help">Pendências ainda não removidas.</div>
+      </article>
+      <article class="kpi-card yellow">
+        <div class="kpi-label">Restrições vencidas</div>
+        <div class="kpi-value" id="kpi-vencidas">0</div>
+        <div class="kpi-help">Pendências com prazo ultrapassado.</div>
+      </article>
+      <article class="kpi-card gray">
+        <div class="kpi-label">Efetivo total</div>
+        <div class="kpi-value" id="kpi-efetivo">0</div>
+        <div class="kpi-help">Total de trabalhadores na visão atual.</div>
+      </article>
+    </section>
+
+    <section class="grid-2">
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">1. Alertas de fluxo e produção protegida</h2>
+            <p class="card-subtitle">Síntese para apoiar a reunião diária e a reunião semanal.</p>
+          </div>
+        </div>
+        <div id="alertas" class="alert-box"></div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">2. Evolução do PPC</h2>
+            <p class="card-subtitle">Confiabilidade do planejamento semanal.</p>
+          </div>
+        </div>
+        <div class="chart-box small"><canvas id="chart-ppc"></canvas></div>
+      </article>
+    </section>
+
+    <section class="grid-2">
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">3. Médio prazo — Make-ready dos pacotes</h2>
+            <p class="card-subtitle">Verificação de projeto, material, equipe, equipamento, segurança e predecessoras.</p>
+          </div>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Semana</th>
+                <th>Local</th>
+                <th>Atividade</th>
+                <th>Fornecedor</th>
+                <th class="center">Peso</th>
+                <th class="center">Prontidão</th>
+                <th class="center">Status LPS</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-pacotes"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" class="right">Meta planejada filtrada</td>
+                <td id="total-peso-pacotes" class="center">0%</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">4. Responsabilidade da meta</h2>
+            <p class="card-subtitle">Distribuição do peso planejado por fornecedor.</p>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="chart-meta"></canvas></div>
+      </article>
+    </section>
+
+    <section class="grid-2">
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">5. Controle de restrições</h2>
+            <p class="card-subtitle">Base para remoção proativa de impedimentos antes do plano semanal.</p>
+          </div>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Pacote</th>
+                <th>Tipo</th>
+                <th>Restrição</th>
+                <th>Responsável</th>
+                <th>Prazo</th>
+                <th>Impacto</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-restricoes"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">6. Causas de não conclusão — CNC</h2>
+            <p class="card-subtitle">Diagnóstico para reduzir variabilidade, perdas e interrupções de fluxo.</p>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="chart-cnc"></canvas></div>
+      </article>
+    </section>
+
+    <section class="grid-2">
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">7. Curto prazo — Plano semanal e PPC</h2>
+            <p class="card-subtitle">Compromissos semanais assumidos pelos últimos planejadores.</p>
+          </div>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Semana</th>
+                <th>Local</th>
+                <th>Compromisso</th>
+                <th>Fornecedor</th>
+                <th class="center">Peso</th>
+                <th>Status</th>
+                <th>Causa de não conclusão</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-semanal"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" class="right">Peso concluído / planejado</td>
+                <td id="total-peso-semanal" class="center">0 / 0</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">8. Kanban do fluxo semanal</h2>
+            <p class="card-subtitle">Visualização rápida do estado dos pacotes de trabalho.</p>
+          </div>
+        </div>
+        <div id="kanban" class="kanban"></div>
+      </article>
+    </section>
+
+    <section class="grid-3">
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">9. Efetivo por fornecedor</h2>
+            <p class="card-subtitle">Base para analisar trabalhadores disponíveis x compromisso assumido.</p>
+          </div>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Fornecedor</th>
+                <th>Disciplina</th>
+                <th class="center">Trabalhadores</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-efetivo"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">10. Diário de obra</h2>
+            <p class="card-subtitle">Registro diário de produção, efetivo e impedimentos.</p>
+          </div>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Local</th>
+                <th>Fornecedor</th>
+                <th class="center">Trabalhadores</th>
+                <th class="center">Quantidade</th>
+                <th>Impedimento</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-diario"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">11. Status das restrições</h2>
+            <p class="card-subtitle">Aberta, em tratamento, removida ou vencida.</p>
+          </div>
+        </div>
+        <div class="chart-box small"><canvas id="chart-restricoes"></canvas></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    // =========================================================
+    // CONFIGURAÇÃO PARA FUTURA LIGAÇÃO COM GOOGLE SHEETS
+    // =========================================================
+    // 1) Mantenha "simulado" enquanto estiver testando.
+    // 2) Depois publique cada aba do Google Sheets como CSV:
+    //    Arquivo > Compartilhar > Publicar na Web > aba específica > CSV.
+    // 3) Troque fonteDados para "sheets" e cole as URLs abaixo.
+    const CONFIG = {
+      fonteDados: "sheets", // versão final: buscar dados no Google Sheets
+      atualizacaoAutomaticaMinutos: 10,
+      googleSheetsCsv: {
+        planoMensal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=1451603694&single=true&output=csv",
+        restricoes: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=274682131&single=true&output=csv",
+        planoSemanal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=1844891682&single=true&output=csv",
+        efetivo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=786305952&single=true&output=csv",
+        diarioObra: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=286018787&single=true&output=csv"
+      }
+    };
+
+    // =========================================================
+    // DADOS GENÉRICOS PARA PROTÓTIPO
+    // =========================================================
+    const dadosBaseVazia = {
+      efetivo: [],
+      pacotes: [],
+      restricoes: [],
+      planoSemanal: [],
+      diarioObra: [],
+      historicoPpc: []
+    };
+
+    let dados = structuredClone(dadosBaseVazia);
+    let graficos = {};
+    const estado = {
+      semana: "",
+      fornecedor: "",
+      local: "",
+      disciplina: "",
+      busca: "",
+      causa: "",
+      statusRestricao: ""
+    };
+
+    const qs = (selector) => document.querySelector(selector);
+
+    function limparElemento(el) {
+      while (el.firstChild) el.removeChild(el.firstChild);
+    }
+
+    function criar(tag, props = {}, filhos = []) {
+      const el = document.createElement(tag);
+      Object.entries(props).forEach(([key, value]) => {
+        if (key === "className") el.className = value;
+        else if (key === "text") el.textContent = value ?? "";
+        else if (key === "title") el.title = value ?? "";
+        else el.setAttribute(key, value);
+      });
+      filhos.forEach(filho => el.appendChild(filho));
+      return el;
+    }
+
+    function criarCelula(texto, className = "") {
+      return criar("td", { text: texto ?? "", className });
+    }
+
+    function criarBadge(texto, tipo = "gray") {
+      return criar("span", { className: `badge ${tipo}`, text: texto });
+    }
+
+    function numero(valor) {
+      const n = Number(valor);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function percentual(valor) {
+      if (!Number.isFinite(valor)) return "0%";
+      return `${Math.round(valor)}%`;
+    }
+
+    function percentual1(valor) {
+      if (!Number.isFinite(valor)) return "0,0%";
+      return `${valor.toFixed(1).replace(".", ",")}%`;
+    }
+
+    function formatarData(dataISO) {
+      if (!dataISO) return "-";
+      const [ano, mes, dia] = dataISO.split("-");
+      return `${dia}/${mes}/${ano}`;
+    }
+
+    function hojeISO() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function textoBusca(item) {
+      return Object.values(item).join(" ").toLowerCase();
+    }
+
+    function passaBusca(item) {
+      if (!estado.busca) return true;
+      return textoBusca(item).includes(estado.busca.toLowerCase());
+    }
+
+    function restricaoVencida(restricao) {
+      return restricao.status !== "Removida" && restricao.prazo && restricao.prazo < hojeISO();
+    }
+
+    function restricoesDoPacote(pacoteId) {
+      return dados.restricoes.filter(r => r.pacoteId === pacoteId);
+    }
+
+    function restricoesAbertasDoPacote(pacoteId) {
+      return restricoesDoPacote(pacoteId).filter(r => r.status !== "Removida");
+    }
+
+    function pacoteApto(pacote) {
+      const criterios = [
+        pacote.projetoOK,
+        pacote.materialOK,
+        pacote.equipeOK,
+        pacote.equipamentoOK,
+        pacote.segurancaOK,
+        pacote.predecessorasOK
+      ];
+      const semRestricaoAberta = restricoesAbertasDoPacote(pacote.id).length === 0;
+      return criterios.every(Boolean) && semRestricaoAberta;
+    }
+
+    function statusPacote(pacote) {
+      if (pacote.statusLPS === "Concluído") return { texto: "Concluído", tipo: "green" };
+      if (pacoteApto(pacote) && pacote.statusLPS === "Liberado") return { texto: "Liberado", tipo: "blue" };
+      if (pacote.statusLPS === "Em execução") return { texto: "Em execução", tipo: "purple" };
+      if (!pacoteApto(pacote)) return { texto: "Não liberado", tipo: "red" };
+      return { texto: pacote.statusLPS || "Planejado", tipo: "gray" };
+    }
+
+    function filtrar(lista) {
+      return lista.filter(item => {
+        const semanaOK = !estado.semana || item.semana === estado.semana;
+        const fornecedorOK = !estado.fornecedor || item.fornecedor === estado.fornecedor;
+        const localOK = !estado.local || item.local === estado.local;
+        const disciplinaOK = !estado.disciplina || item.disciplina === estado.disciplina;
+        const causaOK = !estado.causa || !("causa" in item) || item.causa === estado.causa;
+        return semanaOK && fornecedorOK && localOK && disciplinaOK && causaOK && passaBusca(item);
+      });
+    }
+
+    function filtrarRestricoes() {
+      return dados.restricoes.filter(r => {
+        const pacote = dados.pacotes.find(p => p.id === r.pacoteId);
+        const itemBusca = { ...r, pacoteAtividade: pacote?.atividade, pacoteLocal: pacote?.local, fornecedor: pacote?.fornecedor, disciplina: pacote?.disciplina };
+        const semanaOK = !estado.semana || pacote?.semana === estado.semana;
+        const fornecedorOK = !estado.fornecedor || pacote?.fornecedor === estado.fornecedor;
+        const localOK = !estado.local || pacote?.local === estado.local;
+        const disciplinaOK = !estado.disciplina || pacote?.disciplina === estado.disciplina;
+        const statusVisual = restricaoVencida(r) ? "Vencida" : r.status;
+        const statusRestricaoOK = !estado.statusRestricao || statusVisual === estado.statusRestricao;
+        return semanaOK && fornecedorOK && localOK && disciplinaOK && statusRestricaoOK && passaBusca(itemBusca);
+      });
+    }
+
+    function valoresUnicos(listas, campo) {
+      const set = new Set();
+      listas.flat().forEach(item => {
+        if (item[campo]) set.add(item[campo]);
+      });
+      return [...set].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+    }
+
+    function preencherSelect(id, valores, selecionado, rotuloTodos) {
+      const select = qs(id);
+      limparElemento(select);
+      select.appendChild(criar("option", { value: "", text: rotuloTodos }));
+      valores.forEach(valor => {
+        select.appendChild(criar("option", { value: valor, text: valor }));
+      });
+      select.value = selecionado || "";
+    }
+
+    function inicializarFiltros() {
+      preencherSelect("#filtro-semana", valoresUnicos([dados.pacotes, dados.planoSemanal, dados.efetivo], "semana"), estado.semana, "Todas as semanas");
+      preencherSelect("#filtro-fornecedor", valoresUnicos([dados.pacotes, dados.planoSemanal, dados.efetivo], "fornecedor"), estado.fornecedor, "Todos os fornecedores");
+      preencherSelect("#filtro-local", valoresUnicos([dados.pacotes, dados.planoSemanal, dados.diarioObra], "local"), estado.local, "Todos os locais");
+      preencherSelect("#filtro-disciplina", valoresUnicos([dados.pacotes, dados.planoSemanal, dados.efetivo], "disciplina"), estado.disciplina, "Todas as disciplinas");
+      qs("#busca").value = estado.busca;
+    }
+
+    function somar(lista, campo) {
+      return lista.reduce((acc, item) => acc + numero(item[campo]), 0);
+    }
+
+    function renderKPIs() {
+      const pacotes = filtrar(dados.pacotes);
+      const semanal = filtrar(dados.planoSemanal).filter(t => t.planejado);
+      const restricoes = filtrarRestricoes();
+      const restricoesAbertas = restricoes.filter(r => r.status !== "Removida");
+      const restricoesVencidas = restricoes.filter(restricaoVencida);
+      const efetivo = filtrar(dados.efetivo);
+
+      const concluidas = semanal.filter(t => t.concluido);
+      const ppc = semanal.length ? (concluidas.length / semanal.length) * 100 : 0;
+
+      const pesoPlanejado = somar(semanal, "peso");
+      const pesoConcluido = somar(concluidas, "peso");
+      const ppcPonderado = pesoPlanejado ? (pesoConcluido / pesoPlanejado) * 100 : 0;
+
+      const aptos = pacotes.filter(pacoteApto);
+      const efetivoTotal = efetivo.reduce((acc, e) => acc + numero(e.trabalhadores), 0);
+
+      qs("#kpi-ppc").textContent = percentual(ppc);
+      qs("#kpi-ppc-pond").textContent = percentual(ppcPonderado);
+      qs("#kpi-meta-mes").textContent = percentual1(somar(pacotes, "peso"));
+      qs("#kpi-aptos").textContent = `${aptos.length}/${pacotes.length}`;
+      qs("#kpi-restricoes").textContent = restricoesAbertas.length;
+      qs("#kpi-vencidas").textContent = restricoesVencidas.length;
+      qs("#kpi-efetivo").textContent = efetivoTotal;
+      qs("#total-peso-pacotes").textContent = percentual1(somar(pacotes, "peso"));
+      qs("#total-peso-semanal").textContent = `${percentual1(pesoConcluido)} / ${percentual1(pesoPlanejado)}`;
+    }
+
+    function renderAlertas() {
+      const container = qs("#alertas");
+      limparElemento(container);
+
+      const semanal = filtrar(dados.planoSemanal).filter(t => t.planejado);
+      const pacotes = filtrar(dados.pacotes);
+      const restricoes = filtrarRestricoes();
+      const vencidas = restricoes.filter(restricaoVencida);
+      const naoAptos = pacotes.filter(p => !pacoteApto(p));
+      const naoConcluidas = semanal.filter(t => t.status === "Não concluído");
+
+      const alertas = [];
+
+      if (vencidas.length > 0) {
+        alertas.push({ tipo: "red", texto: `${vencidas.length} restrição(ões) vencida(s). Priorizar remoção antes de liberar novos pacotes para o curto prazo.` });
+      }
+
+      if (naoAptos.length > 0) {
+        alertas.push({ tipo: "", texto: `${naoAptos.length} pacote(s) ainda não estão aptos. Verificar projeto, material, equipe, equipamento, segurança, predecessoras e restrições.` });
+      }
+
+      if (naoConcluidas.length > 0) {
+        const causas = agrupar(naoConcluidas.filter(t => t.causa), "causa");
+        const principal = causas[0];
+        if (principal) alertas.push({ tipo: "red", texto: `Principal causa de não conclusão na visão atual: ${principal.label} (${principal.valor} ocorrência(s)).` });
+      }
+
+      const aptos = pacotes.filter(pacoteApto);
+      if (alertas.length === 0 && aptos.length > 0) {
+        alertas.push({ tipo: "green", texto: "Não há restrições impeditivas na visão atual. Os pacotes filtrados estão aptos para compor o plano semanal." });
+      }
+
+      if (alertas.length === 0) {
+        alertas.push({ tipo: "green", texto: "Nenhum alerta encontrado para os filtros atuais." });
+      }
+
+      alertas.forEach(alerta => {
+        container.appendChild(criar("div", { className: `alert ${alerta.tipo}`, text: alerta.texto }));
+      });
+    }
+
+    function renderPacotes() {
+      const tbody = qs("#tabela-pacotes");
+      limparElemento(tbody);
+      const pacotes = filtrar(dados.pacotes);
+
+      if (!pacotes.length) {
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhum pacote encontrado.", className: "empty", colspan: "8" })]));
+        return;
+      }
+
+      pacotes.forEach(p => {
+        const prontidao = criar("div", { className: "ready-list" }, [
+          criar("span", { className: `ready-dot ${p.projetoOK ? "ok" : ""}`, text: "PR", title: "Projeto" }),
+          criar("span", { className: `ready-dot ${p.materialOK ? "ok" : ""}`, text: "MA", title: "Material" }),
+          criar("span", { className: `ready-dot ${p.equipeOK ? "ok" : ""}`, text: "EQ", title: "Equipe" }),
+          criar("span", { className: `ready-dot ${p.equipamentoOK ? "ok" : ""}`, text: "EP", title: "Equipamento" }),
+          criar("span", { className: `ready-dot ${p.segurancaOK ? "ok" : ""}`, text: "SG", title: "Segurança" }),
+          criar("span", { className: `ready-dot ${p.predecessorasOK ? "ok" : ""}`, text: "PD", title: "Predecessoras" })
+        ]);
+        const st = statusPacote(p);
+
+        const tr = criar("tr", {}, [
+          criarCelula(p.id),
+          criarCelula(p.semana, "nowrap"),
+          criarCelula(`${p.local} — ${p.zona}`),
+          criarCelula(p.atividade),
+          criarCelula(p.fornecedor),
+          criarCelula(percentual1(p.peso), "center nowrap"),
+          criar("td", { className: "center" }, [prontidao]),
+          criar("td", { className: "center" }, [criarBadge(st.texto, st.tipo)])
+        ]);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderRestricoes() {
+      const tbody = qs("#tabela-restricoes");
+      limparElemento(tbody);
+      const restricoes = filtrarRestricoes();
+
+      if (!restricoes.length) {
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhuma restrição encontrada.", className: "empty", colspan: "8" })]));
+        return;
+      }
+
+      restricoes.forEach(r => {
+        const vencida = restricaoVencida(r);
+        const statusTipo = r.status === "Removida" ? "green" : vencida ? "red" : r.status === "Em tratamento" ? "yellow" : "purple";
+        const impactoTipo = r.impacto === "Alto" ? "red" : r.impacto === "Médio" ? "yellow" : "gray";
+
+        tbody.appendChild(criar("tr", {}, [
+          criarCelula(r.id),
+          criarCelula(r.pacoteId),
+          criarCelula(r.tipo),
+          criarCelula(r.descricao),
+          criarCelula(r.responsavel),
+          criarCelula(formatarData(r.prazo), "nowrap"),
+          criar("td", {}, [criarBadge(r.impacto, impactoTipo)]),
+          criar("td", {}, [criarBadge(vencida ? "Vencida" : r.status, statusTipo)])
+        ]));
+      });
+    }
+
+    function renderSemanal() {
+      const tbody = qs("#tabela-semanal");
+      limparElemento(tbody);
+      const semanal = filtrar(dados.planoSemanal);
+
+      if (!semanal.length) {
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhuma atividade semanal encontrada.", className: "empty", colspan: "8" })]));
+        return;
+      }
+
+      semanal.forEach(t => {
+        const statusTipo = t.status === "Concluído" ? "green" : t.status === "Não concluído" ? "red" : "blue";
+        tbody.appendChild(criar("tr", {}, [
+          criarCelula(t.id),
+          criarCelula(t.semana, "nowrap"),
+          criarCelula(t.local),
+          criarCelula(t.compromisso),
+          criarCelula(t.fornecedor),
+          criarCelula(percentual1(t.peso), "center nowrap"),
+          criar("td", {}, [criarBadge(t.status, statusTipo)]),
+          criarCelula(t.causa || "-", t.causa ? "" : "muted")
+        ]));
+      });
+    }
+
+    function renderEfetivo() {
+      const tbody = qs("#tabela-efetivo");
+      limparElemento(tbody);
+      const efetivo = filtrar(dados.efetivo);
+
+      if (!efetivo.length) {
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhum efetivo encontrado.", className: "empty", colspan: "3" })]));
+        return;
+      }
+
+      efetivo.forEach(e => {
+        const tr = criar("tr", { className: "click-row", title: "Clique para filtrar por este fornecedor" }, [
+          criarCelula(e.fornecedor),
+          criarCelula(e.disciplina),
+          criarCelula(e.trabalhadores, "center")
+        ]);
+
+        tr.addEventListener("click", () => aplicarFiltro("fornecedor", e.fornecedor));
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderDiario() {
+      const tbody = qs("#tabela-diario");
+      limparElemento(tbody);
+      const diario = filtrar(dados.diarioObra);
+
+      if (!diario.length) {
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhum registro diário encontrado.", className: "empty", colspan: "6" })]));
+        return;
+      }
+
+      diario.forEach(d => {
+        tbody.appendChild(criar("tr", {}, [
+          criarCelula(formatarData(d.data), "nowrap"),
+          criarCelula(d.local),
+          criarCelula(d.fornecedor),
+          criarCelula(d.trabalhadores, "center"),
+          criarCelula(`${d.quantidade} ${d.unidade}`, "center nowrap"),
+          criarCelula(d.impedimento || "-", d.impedimento ? "" : "muted")
+        ]));
+      });
+    }
+
+    function renderKanban() {
+      const container = qs("#kanban");
+      limparElemento(container);
+
+      const colunas = [
+        { id: "Não liberado", titulo: "Não liberado" },
+        { id: "Liberado", titulo: "Liberado" },
+        { id: "Planejado", titulo: "Planejado" },
+        { id: "Em execução", titulo: "Em execução" },
+        { id: "Concluído", titulo: "Concluído" }
+      ];
+
+      const pacotes = filtrar(dados.pacotes);
+
+      colunas.forEach(col => {
+        const itens = pacotes.filter(p => {
+          const status = statusPacote(p).texto;
+          if (col.id === "Planejado") return status === "Planejado";
+          return status === col.id;
+        });
+
+        const colEl = criar("div", { className: "kanban-col" });
+        colEl.appendChild(criar("h3", { className: "kanban-title" }, [
+          criar("span", { text: col.titulo }),
+          criarBadge(String(itens.length), "gray")
+        ]));
+
+        if (!itens.length) {
+          colEl.appendChild(criar("div", { className: "empty", text: "Sem pacotes." }));
+        }
+
+        itens.forEach(p => {
+          colEl.appendChild(criar("div", { className: "task" }, [
+            criar("strong", { text: `${p.id} — ${p.atividade}` }),
+            criar("span", { text: `${p.local} | ${p.fornecedor} | ${percentual1(p.peso)}` })
+          ]));
+        });
+
+        container.appendChild(colEl);
+      });
+    }
+
+    function agrupar(lista, campo) {
+      const mapa = new Map();
+      lista.forEach(item => {
+        const label = item[campo] || "Não informado";
+        mapa.set(label, (mapa.get(label) || 0) + 1);
+      });
+      return [...mapa.entries()]
+        .map(([label, valor]) => ({ label, valor }))
+        .sort((a, b) => b.valor - a.valor);
+    }
+
+    function agruparSoma(lista, campoLabel, campoValor) {
+      const mapa = new Map();
+      lista.forEach(item => {
+        const label = item[campoLabel] || "Não informado";
+        mapa.set(label, (mapa.get(label) || 0) + numero(item[campoValor]));
+      });
+      return [...mapa.entries()]
+        .map(([label, valor]) => ({ label, valor }))
+        .sort((a, b) => b.valor - a.valor);
+    }
+
+    function destruirGrafico(id) {
+      if (graficos[id]) {
+        graficos[id].destroy();
+        graficos[id] = null;
+      }
+    }
+
+    function criarGrafico(id, config) {
+      destruirGrafico(id);
+      const canvas = qs(`#${id}`);
+      if (!canvas || typeof Chart === "undefined") return;
+      graficos[id] = new Chart(canvas, config);
+    }
+
+
+    function aplicarFiltro(campo, valor) {
+      if (!valor || String(valor).startsWith("Sem ")) return;
+
+      estado[campo] = estado[campo] === valor ? "" : valor;
+
+      // Mantém os selects sincronizados quando o filtro vem de clique em gráfico/linha.
+      inicializarFiltros();
+      renderDashboard();
+    }
+
+    function renderFiltrosAtivos() {
+      const container = qs("#filtros-ativos");
+      limparElemento(container);
+
+      const filtros = [
+        { campo: "semana", rotulo: "Semana", valor: estado.semana },
+        { campo: "fornecedor", rotulo: "Fornecedor", valor: estado.fornecedor },
+        { campo: "local", rotulo: "Local", valor: estado.local },
+        { campo: "disciplina", rotulo: "Disciplina", valor: estado.disciplina },
+        { campo: "causa", rotulo: "CNC", valor: estado.causa },
+        { campo: "statusRestricao", rotulo: "Restrição", valor: estado.statusRestricao },
+        { campo: "busca", rotulo: "Busca", valor: estado.busca }
+      ].filter(f => f.valor);
+
+      if (!filtros.length) {
+        container.classList.add("hidden");
+        return;
+      }
+
+      container.classList.remove("hidden");
+
+      filtros.forEach(filtro => {
+        const chip = criar("button", {
+          className: "filter-chip",
+          type: "button",
+          text: `${filtro.rotulo}: ${filtro.valor} ×`,
+          title: "Clique para remover este filtro"
+        });
+
+        chip.addEventListener("click", () => {
+          estado[filtro.campo] = "";
+          inicializarFiltros();
+          renderDashboard();
+        });
+
+        container.appendChild(chip);
+      });
+
+      const limpar = criar("button", {
+        className: "filter-chip clear",
+        type: "button",
+        text: "Limpar todos os filtros",
+        title: "Remover todos os filtros ativos"
+      });
+
+      limpar.addEventListener("click", () => {
+        estado.semana = "";
+        estado.fornecedor = "";
+        estado.local = "";
+        estado.disciplina = "";
+        estado.busca = "";
+        estado.causa = "";
+        estado.statusRestricao = "";
+        inicializarFiltros();
+        renderDashboard();
+      });
+
+      container.appendChild(limpar);
+    }
+
+    function renderGraficos() {
+      const pacotes = filtrar(dados.pacotes);
+      const semanal = filtrar(dados.planoSemanal);
+      const restricoes = filtrarRestricoes();
+
+      const metaPorFornecedor = agruparSoma(pacotes, "fornecedor", "peso");
+      criarGrafico("chart-meta", {
+        type: "doughnut",
+        data: {
+          labels: metaPorFornecedor.map(i => i.label),
+          datasets: [{ data: metaPorFornecedor.map(i => i.valor) }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (_, elementos) => {
+            if (!elementos.length) return;
+            const fornecedor = metaPorFornecedor[elementos[0].index]?.label;
+            aplicarFiltro("fornecedor", fornecedor);
+          },
+          onHover: (event, elementos) => {
+            event.native.target.style.cursor = elementos.length ? "pointer" : "default";
+          },
+          plugins: {
+            legend: {
+              position: "right",
+              onClick: (_, legendItem) => aplicarFiltro("fornecedor", legendItem.text)
+            },
+            tooltip: {
+              callbacks: {
+                afterLabel: () => "Clique para filtrar por fornecedor"
+              }
+            }
+          },
+          cutout: "58%"
+        }
+      });
+
+      const cnc = agrupar(semanal.filter(t => t.status === "Não concluído" && t.causa), "causa");
+      criarGrafico("chart-cnc", {
+        type: "bar",
+        data: {
+          labels: cnc.length ? cnc.map(i => i.label) : ["Sem CNC"],
+          datasets: [{ label: "Ocorrências", data: cnc.length ? cnc.map(i => i.valor) : [0] }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: "y",
+          onClick: (_, elementos) => {
+            if (!elementos.length || !cnc.length) return;
+            const causa = cnc[elementos[0].index]?.label;
+            aplicarFiltro("causa", causa);
+          },
+          onHover: (event, elementos) => {
+            event.native.target.style.cursor = elementos.length && cnc.length ? "pointer" : "default";
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                afterLabel: () => "Clique para filtrar por causa"
+              }
+            }
+          },
+          scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+
+      const historicoFiltrado = estado.semana
+        ? dados.historicoPpc.filter(h => h.semana <= estado.semana)
+        : dados.historicoPpc;
+
+      criarGrafico("chart-ppc", {
+        type: "line",
+        data: {
+          labels: historicoFiltrado.map(h => h.semana),
+          datasets: [
+            { label: "PPC simples", data: historicoFiltrado.map(h => h.ppc), tension: 0.25 },
+            { label: "PPC ponderado", data: historicoFiltrado.map(h => h.ppcPonderado), tension: 0.25 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (_, elementos) => {
+            if (!elementos.length) return;
+            const semana = historicoFiltrado[elementos[0].index]?.semana;
+            aplicarFiltro("semana", semana);
+          },
+          onHover: (event, elementos) => {
+            event.native.target.style.cursor = elementos.length ? "pointer" : "default";
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                afterLabel: () => "Clique para filtrar por semana"
+              }
+            }
+          },
+          scales: { y: { beginAtZero: true, suggestedMax: 100, ticks: { callback: value => `${value}%` } } }
+        }
+      });
+
+      const statusRestricoes = restricoes.map(r => ({ ...r, statusVisual: restricaoVencida(r) ? "Vencida" : r.status }));
+      const gruposRestricoes = agrupar(statusRestricoes, "statusVisual");
+      criarGrafico("chart-restricoes", {
+        type: "pie",
+        data: {
+          labels: gruposRestricoes.length ? gruposRestricoes.map(i => i.label) : ["Sem restrições"],
+          datasets: [{ data: gruposRestricoes.length ? gruposRestricoes.map(i => i.valor) : [1] }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (_, elementos) => {
+            if (!elementos.length || !gruposRestricoes.length) return;
+            const status = gruposRestricoes[elementos[0].index]?.label;
+            aplicarFiltro("statusRestricao", status);
+          },
+          onHover: (event, elementos) => {
+            event.native.target.style.cursor = elementos.length && gruposRestricoes.length ? "pointer" : "default";
+          },
+          plugins: {
+            legend: {
+              position: "bottom",
+              onClick: (_, legendItem) => aplicarFiltro("statusRestricao", legendItem.text)
+            },
+            tooltip: {
+              callbacks: {
+                afterLabel: () => "Clique para filtrar por status"
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderDashboard() {
+      qs("#data-atualizacao").textContent = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+      qs("#fonte-dados").textContent = CONFIG.fonteDados === "sheets" ? "Google Sheets" : "Simulada";
+
+      renderFiltrosAtivos();
+      renderKPIs();
+      renderAlertas();
+      renderPacotes();
+      renderRestricoes();
+      renderSemanal();
+      renderEfetivo();
+      renderDiario();
+      renderKanban();
+      renderGraficos();
+    }
+
+    function csvLinha(valores) {
+      return valores
+        .map(valor => {
+          const texto = String(valor ?? "");
+          if (/[",;\n]/.test(texto)) return `"${texto.replaceAll('"', '""')}"`;
+          return texto;
+        })
+        .join(";");
+    }
+
+    function exportarVisaoCSV() {
+      const linhas = [];
+      linhas.push(csvLinha(["Tipo", "ID", "Semana", "Local", "Atividade/Descrição", "Fornecedor/Responsável", "Peso/Impacto", "Status/Causa"]));
+
+      filtrar(dados.pacotes).forEach(p => {
+        linhas.push(csvLinha(["Pacote", p.id, p.semana, p.local, p.atividade, p.fornecedor, p.peso, statusPacote(p).texto]));
+      });
+
+      filtrarRestricoes().forEach(r => {
+        linhas.push(csvLinha(["Restrição", r.id, "", r.pacoteId, r.descricao, r.responsavel, r.impacto, restricaoVencida(r) ? "Vencida" : r.status]));
+      });
+
+      filtrar(dados.planoSemanal).forEach(s => {
+        linhas.push(csvLinha(["Plano semanal", s.id, s.semana, s.local, s.compromisso, s.fornecedor, s.peso, s.status || s.causa]));
+      });
+
+      const blob = new Blob([linhas.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = criar("a", { href: url, download: "visao_dashboard_lps.csv" });
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // =========================================================
+    // FUNÇÕES PARA FUTURA LEITURA DE CSV DO GOOGLE SHEETS
+    // =========================================================
+    function parseCSV(texto) {
+      const linhas = [];
+      let linha = [];
+      let campo = "";
+      let aspas = false;
+
+      for (let i = 0; i < texto.length; i++) {
+        const c = texto[i];
+        const prox = texto[i + 1];
+
+        if (c === '"' && aspas && prox === '"') {
+          campo += '"';
+          i++;
+        } else if (c === '"') {
+          aspas = !aspas;
+        } else if ((c === "," || c === ";") && !aspas) {
+          linha.push(campo.trim());
+          campo = "";
+        } else if ((c === "\n" || c === "\r") && !aspas) {
+          if (campo || linha.length) {
+            linha.push(campo.trim());
+            linhas.push(linha);
+            linha = [];
+            campo = "";
+          }
+          if (c === "\r" && prox === "\n") i++;
+        } else {
+          campo += c;
+        }
+      }
+
+      if (campo || linha.length) {
+        linha.push(campo.trim());
+        linhas.push(linha);
+      }
+
+      const cabecalho = linhas.shift() || [];
+      return linhas.map(l => {
+        const obj = {};
+        cabecalho.forEach((col, idx) => { obj[col] = l[idx] ?? ""; });
+        return obj;
+      });
+    }
+
+    async function carregarCSV(url) {
+      const urlLimpa = String(url || "").trim();
+      if (!urlLimpa) return [];
+
+      const separador = urlLimpa.includes("?") ? "&" : "?";
+      const urlSemCache = `${urlLimpa}${separador}_=${Date.now()}`;
+
+      const resposta = await fetch(urlSemCache, { cache: "no-store" });
+      if (!resposta.ok) {
+        throw new Error(`Erro ao carregar CSV (${resposta.status}): ${urlLimpa}`);
+      }
+
+      const texto = await resposta.text();
+
+      // Se o Google devolver uma página HTML de erro em vez de CSV, o painel avisa.
+      if (texto.trim().startsWith("<!DOCTYPE") || texto.trim().startsWith("<html")) {
+        throw new Error(`O link não retornou CSV. Confira se a aba foi publicada em formato CSV: ${urlLimpa}`);
+      }
+
+      return parseCSV(texto);
+    }
+
+    function bool(valor) {
+      return String(valor).toLowerCase().trim() === "true" || String(valor).toLowerCase().trim() === "sim" || String(valor).trim() === "1";
+    }
+
+
+    function calcularHistoricoPpc(planoSemanalCsv) {
+      const porSemana = new Map();
+
+      planoSemanalCsv.forEach(item => {
+        const semana = item.semana;
+        if (!semana) return;
+
+        if (!porSemana.has(semana)) {
+          porSemana.set(semana, {
+            semana,
+            planejadas: 0,
+            concluidas: 0,
+            pesoPlanejado: 0,
+            pesoConcluido: 0
+          });
+        }
+
+        const grupo = porSemana.get(semana);
+        const planejado = bool(item.planejado);
+        const concluido = bool(item.concluido);
+        const peso = numero(String(item.peso || 0).replace(",", "."));
+
+        if (planejado) {
+          grupo.planejadas += 1;
+          grupo.pesoPlanejado += peso;
+        }
+
+        if (planejado && concluido) {
+          grupo.concluidas += 1;
+          grupo.pesoConcluido += peso;
+        }
+      });
+
+      return [...porSemana.values()]
+        .sort((a, b) => String(a.semana).localeCompare(String(b.semana), "pt-BR"))
+        .map(grupo => ({
+          semana: grupo.semana,
+          ppc: grupo.planejadas ? Math.round((grupo.concluidas / grupo.planejadas) * 100) : 0,
+          ppcPonderado: grupo.pesoPlanejado ? Math.round((grupo.pesoConcluido / grupo.pesoPlanejado) * 100) : 0
+        }));
+    }
+
+    async function carregarDados() {
+      if (CONFIG.fonteDados !== "sheets") {
+        dados = structuredClone(dadosBaseVazia);
+        inicializarFiltros();
+        renderDashboard();
+        return;
+      }
+
+      try {
+        const [planoMensal, restricoes, planoSemanal, efetivo, diarioObra] = await Promise.all([
+          carregarCSV(CONFIG.googleSheetsCsv.planoMensal),
+          carregarCSV(CONFIG.googleSheetsCsv.restricoes),
+          carregarCSV(CONFIG.googleSheetsCsv.planoSemanal),
+          carregarCSV(CONFIG.googleSheetsCsv.efetivo),
+          carregarCSV(CONFIG.googleSheetsCsv.diarioObra)
+        ]);
+
+        dados = {
+          pacotes: planoMensal.map(p => ({
+            id: p.id,
+            semana: p.semana,
+            mes: p.mes,
+            local: p.local,
+            zona: p.zona,
+            atividade: p.atividade,
+            fornecedor: p.fornecedor,
+            disciplina: p.disciplina,
+            peso: numero(String(p.peso).replace(",", ".")),
+            inicio: p.inicio,
+            fim: p.fim,
+            projetoOK: bool(p.projetoOK),
+            materialOK: bool(p.materialOK),
+            equipeOK: bool(p.equipeOK),
+            equipamentoOK: bool(p.equipamentoOK),
+            segurancaOK: bool(p.segurancaOK),
+            predecessorasOK: bool(p.predecessorasOK),
+            statusLPS: p.statusLPS
+          })),
+          restricoes: restricoes.map(r => ({
+            id: r.id,
+            pacoteId: r.pacoteId,
+            tipo: r.tipo,
+            descricao: r.descricao,
+            responsavel: r.responsavel,
+            prazo: r.prazo,
+            impacto: r.impacto,
+            status: r.status
+          })),
+          planoSemanal: planoSemanal.map(s => ({
+            id: s.id,
+            semana: s.semana,
+            pacoteId: s.pacoteId,
+            local: s.local,
+            compromisso: s.compromisso,
+            atividade: s.atividade,
+            fornecedor: s.fornecedor,
+            disciplina: s.disciplina,
+            peso: numero(String(s.peso).replace(",", ".")),
+            planejado: bool(s.planejado),
+            concluido: bool(s.concluido),
+            status: s.status,
+            causa: s.causa,
+            observacao: s.observacao
+          })),
+          efetivo: efetivo.map(e => ({
+            semana: e.semana,
+            fornecedor: e.fornecedor,
+            disciplina: e.disciplina,
+            trabalhadores: numero(e.trabalhadores)
+          })),
+          diarioObra: diarioObra.map(d => ({
+            data: d.data,
+            semana: d.semana,
+            pacoteId: d.pacoteId,
+            local: d.local,
+            fornecedor: d.fornecedor,
+            disciplina: d.disciplina,
+            trabalhadores: numero(d.trabalhadores),
+            quantidade: numero(String(d.quantidade).replace(",", ".")),
+            unidade: d.unidade,
+            impedimento: d.impedimento,
+            retrabalho: bool(d.retrabalho)
+          })),
+          historicoPpc: calcularHistoricoPpc(planoSemanal)
+        };
+
+        inicializarFiltros();
+        renderDashboard();
+      } catch (erro) {
+        console.error(erro);
+        dados = structuredClone(dadosBaseVazia);
+        inicializarFiltros();
+        renderDashboard();
+        alert(`Não foi possível carregar o Google Sheets.\n\nDetalhe: ${erro.message}\n\nConfira se o arquivo está publicado no GitHub Pages ou em outro servidor. Ao abrir o HTML direto como arquivo local, alguns navegadores bloqueiam a leitura dos CSVs.`);
+      }
+    }
+
+    function registrarEventos() {
+      qs("#filtro-semana").addEventListener("change", e => { estado.semana = e.target.value; renderDashboard(); });
+      qs("#filtro-fornecedor").addEventListener("change", e => { estado.fornecedor = e.target.value; renderDashboard(); });
+      qs("#filtro-local").addEventListener("change", e => { estado.local = e.target.value; renderDashboard(); });
+      qs("#filtro-disciplina").addEventListener("change", e => { estado.disciplina = e.target.value; renderDashboard(); });
+      qs("#busca").addEventListener("input", e => { estado.busca = e.target.value.trim(); renderDashboard(); });
+
+      qs("#btn-limpar").addEventListener("click", () => {
+        estado.semana = "";
+        estado.fornecedor = "";
+        estado.local = "";
+        estado.disciplina = "";
+        estado.busca = "";
+        estado.causa = "";
+        estado.statusRestricao = "";
+        inicializarFiltros();
+        renderDashboard();
+      });
+
+      qs("#btn-exportar").addEventListener("click", exportarVisaoCSV);
+    }
+
+    registrarEventos();
+    carregarDados();
+
+    if (CONFIG.atualizacaoAutomaticaMinutos > 0) {
+      setInterval(carregarDados, CONFIG.atualizacaoAutomaticaMinutos * 60 * 1000);
+    }
+  </script>
+</body>
+</html>
