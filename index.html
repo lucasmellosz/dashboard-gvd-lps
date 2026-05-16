@@ -494,14 +494,14 @@
       </div>
       <div class="header-actions">
         <span class="pill">Fonte: <strong id="fonte-dados">Simulada</strong></span>
-        <span class="pill">Atualizado: <strong id="data-atualizacao">--</strong></span>
+        <span class="pill">Atualização da planilha: <strong id="data-atualizacao">--</strong></span>
         <button class="button secondary" id="btn-limpar">Limpar filtros</button>
         <button class="button" id="btn-exportar">Exportar visão CSV</button>
       </div>
     </section>
 
     <section class="note">
-      <strong>Preparado para Google Sheets:</strong> esta versão está com dados representativos de uma obra em Porto Alegre/RS, utilizados para fim de representação do estudo de caso apresentado no TCC de Lucas Mello de Resende - CARTÃO UFRGS: 00324885. O painel só exibirá informações depois que as URLs CSV das abas do Google Sheets forem coladas no objeto <code>CONFIG.googleSheetsCsv</code>. Depois, basta publicar cada aba da planilha como CSV e preencher as URLs no objeto <code>CONFIG.googleSheetsCsv</code>. As abas previstas são: <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code> e <code>Diario_Obra</code>.<br><strong>Interatividade:</strong> clique nos gráficos, nas legendas ou nas linhas de efetivo para filtrar automaticamente o painel.
+      <strong>Preparado para Google Sheets:</strong> esta versão está com dados representativos de uma obra em Porto Alegre/RS, utilizados para fim de representação do estudo de caso apresentado no TCC de Lucas Mello de Resende - CARTÃO UFRGS: 00324885. O painel só exibirá informações depois que as URLs CSV das abas do Google Sheets forem coladas no objeto <code>CONFIG.googleSheetsCsv</code>. Depois, basta publicar cada aba da planilha como CSV e preencher as URLs no objeto <code>CONFIG.googleSheetsCsv</code>. As abas previstas são: <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code>, <code>Diario_Obra</code> e <code>Atualizacao</code>.<br><strong>Interatividade:</strong> clique nos gráficos, nas legendas ou nas linhas de efetivo para filtrar automaticamente o painel.
     </section>
 
     <section class="filters" aria-label="Filtros do dashboard">
@@ -780,9 +780,10 @@
     // CONFIGURAÇÃO PARA FUTURA LIGAÇÃO COM GOOGLE SHEETS
     // =========================================================
     // 1) Mantenha "simulado" enquanto estiver testando.
-    // 2) Depois publique cada aba do Google Sheets como CSV:
+    // 2) Publique cada aba do Google Sheets como CSV:
     //    Arquivo > Compartilhar > Publicar na Web > aba específica > CSV.
-    // 3) Troque fonteDados para "sheets" e cole as URLs abaixo.
+    // 3) A aba Atualizacao é opcional, mas recomendada para mostrar a última edição real da planilha.
+    // 4) Cole as URLs abaixo.
     const CONFIG = {
       fonteDados: "sheets", // versão final: buscar dados no Google Sheets
       atualizacaoAutomaticaMinutos: 10,
@@ -791,7 +792,8 @@
         restricoes: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=274682131&single=true&output=csv",
         planoSemanal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=1844891682&single=true&output=csv",
         efetivo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=786305952&single=true&output=csv",
-        diarioObra: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=286018787&single=true&output=csv"
+        diarioObra: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=286018787&single=true&output=csv",
+        atualizacao: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQalp08NUXP78IpkzFuTq_ZVj1s4sZLeyqZLLUai6mzSPtCadLTEqiEEnx9bVD5vzPKDQXm-Y-ot6pz/pub?gid=1911450260&single=true&output=csv"
       }
     };
 
@@ -809,6 +811,7 @@
 
     let dados = structuredClone(dadosBaseVazia);
     let graficos = {};
+    let ultimaAtualizacaoPlanilha = "Aba Atualizacao não vinculada";
     const estado = {
       semana: "",
       fornecedor: "",
@@ -1457,7 +1460,7 @@
     }
 
     function renderDashboard() {
-      qs("#data-atualizacao").textContent = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+      qs("#data-atualizacao").textContent = ultimaAtualizacaoPlanilha || "Aba Atualizacao não vinculada";
       qs("#fonte-dados").textContent = CONFIG.fonteDados === "sheets" ? "Google Sheets" : "Simulada";
 
       renderFiltrosAtivos();
@@ -1580,6 +1583,27 @@
       return String(valor).toLowerCase().trim() === "true" || String(valor).toLowerCase().trim() === "sim" || String(valor).trim() === "1";
     }
 
+    function obterUltimaAtualizacao(listaAtualizacao) {
+      if (!Array.isArray(listaAtualizacao) || listaAtualizacao.length === 0) {
+        return "";
+      }
+
+      const primeiraLinha = listaAtualizacao[0] || {};
+
+      // Formato recomendado da aba Atualizacao:
+      // A1 = ultimaAtualizacao
+      // A2 = 15/05/2026 20:35:12
+      const valor =
+        primeiraLinha.ultimaAtualizacao ||
+        primeiraLinha.dataAtualizacao ||
+        primeiraLinha.atualizacao ||
+        primeiraLinha.valor ||
+        Object.values(primeiraLinha)[0];
+
+      return String(valor || "").trim();
+    }
+
+
 
     function calcularHistoricoPpc(planoSemanalCsv) {
       const porSemana = new Map();
@@ -1626,19 +1650,23 @@
     async function carregarDados() {
       if (CONFIG.fonteDados !== "sheets") {
         dados = structuredClone(dadosBaseVazia);
+        ultimaAtualizacaoPlanilha = "Fonte de dados não configurada como Google Sheets";
         inicializarFiltros();
         renderDashboard();
         return;
       }
 
       try {
-        const [planoMensal, restricoes, planoSemanal, efetivo, diarioObra] = await Promise.all([
+        const [planoMensal, restricoes, planoSemanal, efetivo, diarioObra, atualizacao] = await Promise.all([
           carregarCSV(CONFIG.googleSheetsCsv.planoMensal),
           carregarCSV(CONFIG.googleSheetsCsv.restricoes),
           carregarCSV(CONFIG.googleSheetsCsv.planoSemanal),
           carregarCSV(CONFIG.googleSheetsCsv.efetivo),
-          carregarCSV(CONFIG.googleSheetsCsv.diarioObra)
+          carregarCSV(CONFIG.googleSheetsCsv.diarioObra),
+          carregarCSV(CONFIG.googleSheetsCsv.atualizacao)
         ]);
+
+        ultimaAtualizacaoPlanilha = obterUltimaAtualizacao(atualizacao) || "Aba Atualizacao não vinculada";
 
         dados = {
           pacotes: planoMensal.map(p => ({
