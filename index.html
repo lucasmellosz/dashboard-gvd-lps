@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard GVD LPS - v4</title>
+  <title>Dashboard GVD LPS - v5</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -357,10 +357,14 @@
 
     .kanban {
       display: grid;
-      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      grid-template-columns: repeat(5, minmax(165px, 1fr));
       gap: 10px;
-      overflow-x: auto;
-      padding-bottom: 4px;
+      max-height: 330px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #ffffff;
     }
 
     .kanban-col {
@@ -368,7 +372,33 @@
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 10px;
-      min-height: 190px;
+      min-height: 0;
+      align-self: start;
+    }
+
+    .kanban-col.nao-liberado {
+      background: #fff7ed;
+      border-color: #fed7aa;
+    }
+
+    .kanban-col.liberado {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
+
+    .kanban-col.planejado {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    .kanban-col.em-execucao {
+      background: #f5f3ff;
+      border-color: #ddd6fe;
+    }
+
+    .kanban-col.concluido {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
     }
 
     .kanban-title {
@@ -377,6 +407,8 @@
       gap: 6px;
       align-items: center;
       margin: 0 0 8px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid rgba(100, 116, 139, 0.18);
       font-size: 0.86rem;
       color: #0f172a;
     }
@@ -502,7 +534,7 @@
     </section>
 
     <section class="note">
-      <strong>Preparado para Google Sheets:</strong>Esta é uma versão representativa de uma base de dados de uma obra em Porto Alegre/RS, utilizado somente para fins de estudo e aplicação no Trabalho de Conclusão de Curso do graduando de Engenharia Civil: <strong>Lucas Mello de Resende</strong>.<br>A fonte dos dados recomendada é o <code>Apps Script Web App</code>, que lê a planilha ativa em tempo real. <br><strong>Abas esperadas na planilha base:</strong> <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code>, <code>Diario_Obra</code> e <code>Atualizacao</code>. O contador ao lado de “Fonte” mostra quantas linhas foram realmente carregadas de cada aba.
+      <strong>Preparado para Google Sheets:</strong>Esta é uma versão representativa de uma base de dados de uma obra em Porto Alegre/RS, utilizado somente para fins de estudo e aplicação no Trabalho de Conclusão de Curso do graduando de Engenharia Civil: <strong>Lucas Mello de Resende</strong>.<br>A fonte dos dados recomendada é o <code>Apps Script Web App</code>, que lê a planilha ativa em tempo real. <br><strong>Abas esperadas na planilha base:</strong> <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code> e <code>Atualizacao</code>. O contador ao lado de “Fonte” mostra quantas linhas foram realmente carregadas de cada aba usada no dashboard.
     </section>
 
     <section class="filters" aria-label="Filtros do dashboard">
@@ -532,39 +564,39 @@
 
     <section class="kpi-grid" aria-label="Indicadores principais">
       <article class="kpi-card green">
-        <div class="kpi-label">PPC semanal</div>
+        <div class="kpi-label">PPC do período selecionado</div>
         <div class="kpi-value" id="kpi-ppc">0%</div>
-        <div class="kpi-help">Tarefas concluídas / tarefas prometidas.</div>
+        <div class="kpi-help">Concluídas / prometidas nos filtros ativos.</div>
       </article>
       <article class="kpi-card purple">
-        <div class="kpi-label">PPC ponderado</div>
+        <div class="kpi-label">PPC ponderado do período selecionado</div>
         <div class="kpi-value" id="kpi-ppc-pond">0%</div>
-        <div class="kpi-help">Peso concluído / peso planejado.</div>
+        <div class="kpi-help">Peso concluído / planejado nos filtros ativos.</div>
       </article>
       <article class="kpi-card">
-        <div class="kpi-label">Meta do mês</div>
+        <div class="kpi-label">Meta do período selecionado</div>
         <div class="kpi-value" id="kpi-meta-mes">0%</div>
-        <div class="kpi-help">Soma dos pesos dos pacotes filtrados.</div>
+        <div class="kpi-help">Soma dos pesos dos pacotes nos filtros ativos.</div>
       </article>
       <article class="kpi-card green">
-        <div class="kpi-label">Pacotes aptos</div>
+        <div class="kpi-label">Pacotes aptos no período selecionado</div>
         <div class="kpi-value" id="kpi-aptos">0/0</div>
-        <div class="kpi-help">Pacotes sem restrição impeditiva.</div>
+        <div class="kpi-help">Pacotes filtrados sem restrição impeditiva.</div>
       </article>
       <article class="kpi-card red">
-        <div class="kpi-label">Restrições abertas</div>
+        <div class="kpi-label">Restrições abertas no período selecionado</div>
         <div class="kpi-value" id="kpi-restricoes">0</div>
-        <div class="kpi-help">Pendências ainda não removidas.</div>
+        <div class="kpi-help">Pendências filtradas ainda não removidas.</div>
       </article>
       <article class="kpi-card yellow">
-        <div class="kpi-label">Restrições vencidas</div>
+        <div class="kpi-label">Restrições vencidas no período selecionado</div>
         <div class="kpi-value" id="kpi-vencidas">0</div>
-        <div class="kpi-help">Pendências com prazo ultrapassado.</div>
+        <div class="kpi-help">Pendências filtradas com prazo ultrapassado.</div>
       </article>
       <article class="kpi-card gray">
-        <div class="kpi-label">Efetivo diário</div>
+        <div class="kpi-label">Efetivo do período selecionado</div>
         <div class="kpi-value" id="kpi-efetivo">0</div>
-        <div class="kpi-help">Trabalhadores no último dia registrado.</div>
+        <div class="kpi-help">Trabalhadores no último dia filtrado.</div>
       </article>
     </section>
 
@@ -718,7 +750,7 @@
       </article>
     </section>
 
-    <section class="grid-3">
+    <section class="grid-2">
       <article class="card">
         <div class="card-header">
           <div>
@@ -746,31 +778,7 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">10. Diário de obra</h2>
-            <p class="card-subtitle">Registro diário de produção, efetivo e impedimentos.</p>
-          </div>
-        </div>
-        <div class="scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Local</th>
-                <th>Fornecedor</th>
-                <th class="center">Trabalhadores</th>
-                <th class="center">Quantidade</th>
-                <th>Impedimento</th>
-              </tr>
-            </thead>
-            <tbody id="tabela-diario"></tbody>
-          </table>
-        </div>
-      </article>
-
-      <article class="card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">11. Status das restrições</h2>
+            <h2 class="card-title">10. Status das restrições</h2>
             <p class="card-subtitle">Aberta, em tratamento, removida ou vencida.</p>
           </div>
         </div>
@@ -1049,7 +1057,7 @@
     function inicializarFiltros() {
       preencherSelect("#filtro-semana", valoresUnicos([dados.pacotes, dados.planoSemanal, dados.efetivo], "semana"), estado.semana, "Todas as semanas");
       preencherSelect("#filtro-fornecedor", valoresUnicos([dados.pacotes, dados.planoSemanal, dados.efetivo], "fornecedor"), estado.fornecedor, "Todos os fornecedores");
-      preencherSelect("#filtro-local", valoresUnicos([dados.pacotes, dados.planoSemanal, dados.diarioObra], "local"), estado.local, "Todos os locais");
+      preencherSelect("#filtro-local", valoresUnicos([dados.pacotes, dados.planoSemanal], "local"), estado.local, "Todos os locais");
       preencherSelect("#filtro-disciplina", valoresUnicos([dados.pacotes, dados.planoSemanal, dados.efetivo], "disciplina"), estado.disciplina, "Todas as disciplinas");
       qs("#busca").value = estado.busca;
     }
@@ -1364,11 +1372,11 @@
       limparElemento(container);
 
       const colunas = [
-        { id: "Não liberado", titulo: "Não liberado" },
-        { id: "Liberado", titulo: "Liberado" },
-        { id: "Planejado", titulo: "Planejado" },
-        { id: "Em execução", titulo: "Em execução" },
-        { id: "Concluído", titulo: "Concluído" }
+        { id: "Não liberado", titulo: "Não liberado", classe: "nao-liberado" },
+        { id: "Liberado", titulo: "Liberado", classe: "liberado" },
+        { id: "Planejado", titulo: "Planejado", classe: "planejado" },
+        { id: "Em execução", titulo: "Em execução", classe: "em-execucao" },
+        { id: "Concluído", titulo: "Concluído", classe: "concluido" }
       ];
 
       const pacotes = filtrar(dados.pacotes);
@@ -1380,7 +1388,7 @@
           return status === col.id;
         });
 
-        const colEl = criar("div", { className: "kanban-col" });
+        const colEl = criar("div", { className: `kanban-col ${col.classe}` });
         colEl.appendChild(criar("h3", { className: "kanban-title" }, [
           criar("span", { text: col.titulo }),
           criarBadge(String(itens.length), "gray")
@@ -1436,6 +1444,88 @@
       if (!canvas || typeof Chart === "undefined") return;
       graficos[id] = new Chart(canvas, config);
     }
+
+
+    const outsideLabelsPlugin = {
+      id: "outsideLabels",
+      afterDatasetsDraw(chart, args, pluginOptions) {
+        const dataset = chart.data.datasets?.[0];
+        const meta = chart.getDatasetMeta(0);
+        if (!dataset || !meta?.data?.length) return;
+
+        const total = dataset.data.reduce((acc, valor) => acc + numero(valor), 0);
+        const { ctx } = chart;
+        const options = pluginOptions || {};
+        const formatter = options.formatter || ((label, value) => `${label} (${value})`);
+
+        ctx.save();
+        ctx.font = options.font || "600 11px Segoe UI, Roboto, Arial, sans-serif";
+        ctx.fillStyle = options.color || "#334155";
+        ctx.strokeStyle = options.lineColor || "rgba(100, 116, 139, 0.55)";
+        ctx.lineWidth = 1;
+
+        meta.data.forEach((arc, index) => {
+          const value = numero(dataset.data[index]);
+          if (!value && total > 0) return;
+
+          const label = chart.data.labels?.[index] || "";
+          const props = arc.getProps(["x", "y", "startAngle", "endAngle", "outerRadius"], true);
+          const angle = (props.startAngle + props.endAngle) / 2;
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          const startX = props.x + cos * (props.outerRadius + 3);
+          const startY = props.y + sin * (props.outerRadius + 3);
+          const midX = props.x + cos * (props.outerRadius + 16);
+          const midY = props.y + sin * (props.outerRadius + 16);
+          const endX = midX + (cos >= 0 ? 24 : -24);
+          const textX = endX + (cos >= 0 ? 4 : -4);
+          const textY = midY;
+
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(midX, midY);
+          ctx.lineTo(endX, midY);
+          ctx.stroke();
+
+          ctx.textAlign = cos >= 0 ? "left" : "right";
+          ctx.textBaseline = "middle";
+          ctx.fillText(formatter(label, value, total), textX, textY);
+        });
+
+        ctx.restore();
+      }
+    };
+
+    const pie3dEffectPlugin = {
+      id: "pie3dEffect",
+      beforeDatasetDraw(chart, args, pluginOptions) {
+        if (!chart.config.type || !["pie", "doughnut"].includes(chart.config.type)) return;
+
+        const meta = chart.getDatasetMeta(args.index);
+        if (!meta?.data?.length) return;
+
+        const { ctx } = chart;
+        const depth = pluginOptions?.depth || 12;
+        ctx.save();
+        ctx.fillStyle = pluginOptions?.shadowColor || "rgba(15, 23, 42, 0.16)";
+
+        meta.data.forEach(arc => {
+          const props = arc.getProps(["x", "y", "startAngle", "endAngle", "outerRadius", "innerRadius"], true);
+          ctx.beginPath();
+          ctx.moveTo(props.x, props.y + depth);
+          ctx.arc(props.x, props.y + depth, props.outerRadius, props.startAngle, props.endAngle);
+          if (props.innerRadius && props.innerRadius > 0) {
+            ctx.arc(props.x, props.y + depth, props.innerRadius, props.endAngle, props.startAngle, true);
+          } else {
+            ctx.lineTo(props.x, props.y + depth);
+          }
+          ctx.closePath();
+          ctx.fill();
+        });
+
+        ctx.restore();
+      }
+    };
 
 
     function aplicarFiltro(campo, valor) {
@@ -1517,46 +1607,59 @@
       criarGrafico("chart-meta", {
         type: "doughnut",
         data: {
-          labels: metaPorFornecedor.map(i => i.label),
-          datasets: [{ data: metaPorFornecedor.map(i => i.valor) }]
+          labels: metaPorFornecedor.length ? metaPorFornecedor.map(i => i.label) : ["Sem meta"],
+          datasets: [{
+            data: metaPorFornecedor.length ? metaPorFornecedor.map(i => i.valor) : [1],
+            borderWidth: 1,
+            hoverOffset: 8
+          }]
         },
+        plugins: [outsideLabelsPlugin],
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          layout: { padding: { top: 24, right: 92, bottom: 24, left: 92 } },
           onClick: (_, elementos) => {
-            if (!elementos.length) return;
+            if (!elementos.length || !metaPorFornecedor.length) return;
             const fornecedor = metaPorFornecedor[elementos[0].index]?.label;
             aplicarFiltro("fornecedor", fornecedor);
           },
           onHover: (event, elementos) => {
-            event.native.target.style.cursor = elementos.length ? "pointer" : "default";
+            event.native.target.style.cursor = elementos.length && metaPorFornecedor.length ? "pointer" : "default";
           },
           plugins: {
-            legend: {
-              position: "right",
-              onClick: (_, legendItem) => aplicarFiltro("fornecedor", legendItem.text)
+            legend: { display: false },
+            outsideLabels: {
+              formatter: (label, value) => `${label} — ${percentual1(value)}`
             },
             tooltip: {
               callbacks: {
+                label: contexto => `${contexto.label}: ${percentual1(contexto.parsed)}`,
                 afterLabel: () => "Clique para filtrar por fornecedor"
               }
             }
           },
-          cutout: "58%"
+          cutout: "56%"
         }
       });
 
       const cnc = agrupar(semanal.filter(t => t.status === "Não concluído" && t.causa), "causa");
       criarGrafico("chart-cnc", {
-        type: "bar",
+        type: "pie",
         data: {
           labels: cnc.length ? cnc.map(i => i.label) : ["Sem CNC"],
-          datasets: [{ label: "Ocorrências", data: cnc.length ? cnc.map(i => i.valor) : [0] }]
+          datasets: [{
+            label: "Ocorrências",
+            data: cnc.length ? cnc.map(i => i.valor) : [1],
+            borderWidth: 1,
+            hoverOffset: 8
+          }]
         },
+        plugins: [pie3dEffectPlugin, outsideLabelsPlugin],
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          indexAxis: "y",
+          layout: { padding: { top: 26, right: 88, bottom: 26, left: 88 } },
           onClick: (_, elementos) => {
             if (!elementos.length || !cnc.length) return;
             const causa = cnc[elementos[0].index]?.label;
@@ -1567,13 +1670,17 @@
           },
           plugins: {
             legend: { display: false },
+            pie3dEffect: { depth: 12 },
+            outsideLabels: {
+              formatter: (label, value, total) => total ? `${label} — ${value}` : label
+            },
             tooltip: {
               callbacks: {
-                afterLabel: () => "Clique para filtrar por causa"
+                label: contexto => `${contexto.label}: ${contexto.parsed} ocorrência(s)`,
+                afterLabel: () => cnc.length ? "Clique para filtrar por causa" : ""
               }
             }
-          },
-          scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
         }
       });
 
@@ -1710,7 +1817,6 @@
       renderRestricoes();
       renderSemanal();
       renderEfetivo();
-      renderDiario();
       renderKanban();
       renderGraficos();
     }
@@ -1867,7 +1973,7 @@
       const url = String(links[chave] || "").trim();
       if (!url) return "";
 
-      const idsDados = ["planoMensal", "restricoes", "planoSemanal", "efetivo", "diarioObra"]
+      const idsDados = ["planoMensal", "restricoes", "planoSemanal", "efetivo"]
         .map(k => idPublicacao(links[k]))
         .filter(Boolean);
       const idPrincipal = idsDados[0] || "";
@@ -1938,7 +2044,6 @@
         restricoes: abas[CONFIG.abas.restricoes] || [],
         planoSemanal: abas[CONFIG.abas.planoSemanal] || [],
         efetivo: abas[CONFIG.abas.efetivo] || [],
-        diarioObra: abas[CONFIG.abas.diarioObra] || [],
         atualizacao: [{ ultimaAtualizacao: json.ultimaAtualizacao || json.atualizadoEm || "" }]
       };
     }
@@ -2022,14 +2127,13 @@
         mensal: brutos.planoMensal.length,
         restricoes: brutos.restricoes.length,
         semanal: brutos.planoSemanal.length,
-        efetivo: brutos.efetivo.length,
-        diario: brutos.diarioObra.length
+        efetivo: brutos.efetivo.length
       };
     }
 
     function resumoLinhas() {
       const c = ultimaContagemLinhas || {};
-      return `PM ${c.mensal || 0} | R ${c.restricoes || 0} | PS ${c.semanal || 0} | EF ${c.efetivo || 0} | DO ${c.diario || 0}`;
+      return `PM ${c.mensal || 0} | R ${c.restricoes || 0} | PS ${c.semanal || 0} | EF ${c.efetivo || 0}`;
     }
 
     async function carregarDados() {
@@ -2058,16 +2162,15 @@
           const usandoGviz = Boolean(idPlanilhaEditavelValido()) && CONFIG.fontePreferencial !== "csvPublicado";
           ultimaFonteDados = usandoGviz ? "Google Sheets gviz" : "CSV publicado";
 
-          const [planoMensal, restricoes, planoSemanal, efetivo, diarioObra, atualizacao] = await Promise.all([
+          const [planoMensal, restricoes, planoSemanal, efetivo, atualizacao] = await Promise.all([
             carregarAba("planoMensal"),
             carregarAba("restricoes"),
             carregarAba("planoSemanal"),
             carregarAba("efetivo"),
-            carregarAba("diarioObra"),
             carregarAba("atualizacao")
           ]);
 
-          brutos = { planoMensal, restricoes, planoSemanal, efetivo, diarioObra, atualizacao };
+          brutos = { planoMensal, restricoes, planoSemanal, efetivo, atualizacao };
         }
 
         ultimaContagemLinhas = contarLinhasCarregadas(brutos);
@@ -2127,19 +2230,7 @@
             disciplina: campo(e, ["disciplina", "Disciplina", "servico", "serviço", "atividade", "Atividade"]),
             trabalhadores: numero(campo(e, ["trabalhadores", "Trabalhadores", "efetivo", "Efetivo", "funcionarios", "funcionários", "Total", "total"]))
           })).filter(e => e.data || e.semana || e.fornecedor || e.disciplina || e.trabalhadores),
-          diarioObra: brutos.diarioObra.map(d => ({
-            data: normalizarData(campo(d, ["data", "Data"])),
-            semana: campo(d, ["semana", "Semana"]),
-            pacoteId: campo(d, ["pacoteId", "pacote", "idPacote"]),
-            local: campo(d, ["local", "Local"]),
-            fornecedor: campo(d, ["fornecedor", "Fornecedor", "empresa", "Empresa"]),
-            disciplina: campo(d, ["disciplina", "Disciplina"]),
-            trabalhadores: numero(campo(d, ["trabalhadores", "Trabalhadores", "efetivo", "Efetivo"])),
-            quantidade: numero(campo(d, ["quantidade", "Quantidade"])),
-            unidade: campo(d, ["unidade", "Unidade"]),
-            impedimento: campo(d, ["impedimento", "Impedimento"]),
-            retrabalho: bool(campo(d, ["retrabalho", "Retrabalho"]))
-          })).filter(d => d.data || d.local || d.fornecedor || d.quantidade || d.impedimento),
+          diarioObra: [],
           historicoPpc: calcularHistoricoPpc(brutos.planoSemanal)
         };
 
