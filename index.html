@@ -502,7 +502,7 @@
     </section>
 
     <section class="note">
-      <strong>Preparado para Google Sheets:</strong> esta versão busca os dados diretamente das abas publicadas em CSV no Google Sheets. Para o efetivo diário, a aba <code>Efetivo</code> deve conter as colunas <code>data</code>, <code>semana</code>, <code>fornecedor</code>, <code>disciplina</code> e <code>trabalhadores</code>. As demais abas previstas são: <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Diario_Obra</code> e <code>Atualizacao</code>.<br><strong>Interatividade:</strong> clique nos gráficos, nas legendas ou nas linhas de efetivo para filtrar automaticamente o painel.
+      <strong>Preparado para Google Sheets:</strong> a versão corrigida evita o falso positivo em que só a data/hora muda. A fonte recomendada agora é o <code>Apps Script Web App</code>, que lê a planilha ativa em tempo real. Como alternativa, cole o <code>planilhaIdEditavel</code> para leitura via <code>gviz/tq</code>. Use os links <code>csvPublicado</code> apenas como fallback e mantenha todas as abas no mesmo arquivo publicado.<br><strong>Abas esperadas:</strong> <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code>, <code>Diario_Obra</code> e <code>Atualizacao</code>. O contador ao lado de “Fonte” mostra quantas linhas foram realmente carregadas de cada aba.
     </section>
 
     <section class="filters" aria-label="Filtros do dashboard">
@@ -789,15 +789,42 @@
     // 3) A aba Atualizacao é opcional, mas recomendada para mostrar a última edição real da planilha.
     // 4) Cole as URLs abaixo.
     const CONFIG = {
-      fonteDados: "sheets", // versão final: buscar dados no Google Sheets
+      fonteDados: "sheets",
       atualizacaoAutomaticaMinutos: 1,
-      googleSheetsCsv: {
-        planoMensal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=1451603694&single=true&output=csv",
-        restricoes: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=274682131&single=true&output=csv",
-        planoSemanal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=1844891682&single=true&output=csv",
-        efetivo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=786305952&single=true&output=csv",
-        diarioObra: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=286018787&single=true&output=csv",
-        atualizacao: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQalp08NUXP78IpkzFuTq_ZVj1s4sZLeyqZLLUai6mzSPtCadLTEqiEEnx9bVD5vzPKDQXm-Y-ot6pz/pub?gid=1911450260&single=true&output=csv"
+
+      // Preferência de leitura:
+      // 1) appsScript: mais estável e sem depender do cache do "Publicar na Web".
+      // 2) gviz: usa o ID editável da planilha /d/{ID}/edit e lê as abas pelo nome.
+      // 3) csvPublicado: usa os links publicados em CSV como alternativa.
+      fontePreferencial: "appsScript", // appsScript | gviz | csvPublicado
+
+      // Cole aqui a URL do Web App do Apps Script após publicar o script anexo.
+      // Exemplo: https://script.google.com/macros/s/AKfycb.../exec
+      appsScriptWebAppUrl: "https://script.google.com/macros/s/AKfycbzOeoZ_gX6c3uNmlu_L9HOn6elZCu18p17SbJccn3aBu-1clcCgQcF9eszksbvoBA_N/exec",
+
+      // Alternativa sem Apps Script: cole somente o ID da planilha editável do Google Sheets.
+      // O ID fica na URL: https://docs.google.com/spreadsheets/d/ESTE_TEXTO_AQUI/edit
+      planilhaIdEditavel: "",
+
+      abas: {
+        planoMensal: "Plano_Mensal",
+        restricoes: "Restricoes",
+        planoSemanal: "Plano_Semanal",
+        efetivo: "Efetivo",
+        diarioObra: "Diario_Obra",
+        atualizacao: "Atualizacao"
+      },
+
+      // Fallback: links publicados em CSV. Use todos do MESMO arquivo publicado.
+      // No código original a aba Atualizacao apontava para outro ID publicado, o que
+      // fazia a data/hora mudar sem garantir que os dados carregados fossem da mesma planilha.
+      csvPublicado: {
+        planoMensal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=1595085839&single=true&output=csv",
+        restricoes: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=901090181&single=true&output=csv",
+        planoSemanal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=334541404&single=true&output=csv",
+        efetivo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=1489048044&single=true&output=csv",
+        diarioObra: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=2055599827&single=true&output=csv",
+        atualizacao: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=1820235717&single=true&output=csv" // preencher com a aba Atualizacao do mesmo arquivo, se usar CSV publicado
       }
     };
 
@@ -816,6 +843,9 @@
     let dados = structuredClone(dadosBaseVazia);
     let graficos = {};
     let ultimaAtualizacaoPlanilha = "Aba Atualizacao não vinculada";
+    let ultimaFonteDados = "Google Sheets";
+    let ultimaContagemLinhas = {};
+    let carregamentoEmAndamento = false;
     const estado = {
       semana: "",
       fornecedor: "",
@@ -879,17 +909,46 @@
       return `${valor.toFixed(1).replace(".", ",")}%`;
     }
 
+    function serialPlanilhaParaISO(valor) {
+      const texto = String(valor || "").trim();
+      if (!/^\d+(?:[\.,]\d+)?$/.test(texto)) return "";
+
+      const n = numero(texto);
+      if (n < 20000 || n > 80000) return "";
+
+      // Google Sheets/Excel usam 1899-12-30 como base prática para datas seriais.
+      const data = new Date(Date.UTC(1899, 11, 30 + Math.floor(n)));
+      return data.toISOString().slice(0, 10);
+    }
+
+    function normalizarData(valor) {
+      if (!valor) return "";
+
+      const serial = serialPlanilhaParaISO(valor);
+      if (serial) return serial;
+
+      const texto = String(valor).trim();
+
+      const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (br) {
+        const [, dia, mes, ano] = br;
+        return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+      }
+
+      const iso = texto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (iso) {
+        const [, ano, mes, dia] = iso;
+        return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+      }
+
+      return texto;
+    }
+
     function formatarData(dataValor) {
       if (!dataValor) return "-";
 
-      const texto = String(dataValor).trim();
+      const texto = normalizarData(dataValor);
 
-      // Google Sheets em CSV pode retornar datas como dd/mm/aaaa.
-      if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(texto)) {
-        return texto.split(" ")[0];
-      }
-
-      // Ou como aaaa-mm-dd.
       if (/^\d{4}-\d{1,2}-\d{1,2}/.test(texto)) {
         const [ano, mes, dia] = texto.slice(0, 10).split("-");
         return `${dia.padStart(2, "0")}/${mes.padStart(2, "0")}/${ano}`;
@@ -912,7 +971,7 @@
     }
 
     function restricaoVencida(restricao) {
-      return restricao.status !== "Removida" && restricao.prazo && restricao.prazo < hojeISO();
+      return restricao.status !== "Removida" && restricao.prazo && valorData(restricao.prazo) && valorData(restricao.prazo) < valorData(hojeISO());
     }
 
     function restricoesDoPacote(pacoteId) {
@@ -1025,17 +1084,17 @@
     function valorData(dataValor) {
       if (!dataValor) return 0;
 
-      const texto = String(dataValor).trim();
-
-      const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-      if (br) {
-        const [, dia, mes, ano] = br;
-        return new Date(Number(ano), Number(mes) - 1, Number(dia)).getTime();
-      }
+      const texto = normalizarData(dataValor);
 
       const iso = texto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
       if (iso) {
         const [, ano, mes, dia] = iso;
+        return new Date(Number(ano), Number(mes) - 1, Number(dia)).getTime();
+      }
+
+      const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (br) {
+        const [, dia, mes, ano] = br;
         return new Date(Number(ano), Number(mes) - 1, Number(dia)).getTime();
       }
 
@@ -1642,7 +1701,7 @@
 
     function renderDashboard() {
       qs("#data-atualizacao").textContent = ultimaAtualizacaoPlanilha || "Aba Atualizacao não vinculada";
-      qs("#fonte-dados").textContent = CONFIG.fonteDados === "sheets" ? "Google Sheets" : "Simulada";
+      qs("#fonte-dados").textContent = CONFIG.fonteDados === "sheets" ? `${ultimaFonteDados} — ${resumoLinhas()}` : "Simulada";
 
       renderFiltrosAtivos();
       renderKPIs();
@@ -1694,7 +1753,44 @@
     // =========================================================
     // FUNÇÕES PARA FUTURA LEITURA DE CSV DO GOOGLE SHEETS
     // =========================================================
+    function primeiraLinhaCsv(texto) {
+      const linhas = String(texto || "").split(/\r?\n/);
+      return linhas.find(l => l.trim()) || "";
+    }
+
+    function contarDelimitadorForaAspas(linha, delimitador) {
+      let aspas = false;
+      let total = 0;
+
+      for (let i = 0; i < linha.length; i++) {
+        const c = linha[i];
+        const prox = linha[i + 1];
+
+        if (c === '"' && aspas && prox === '"') {
+          i++;
+        } else if (c === '"') {
+          aspas = !aspas;
+        } else if (c === delimitador && !aspas) {
+          total++;
+        }
+      }
+
+      return total;
+    }
+
+    function detectarDelimitador(texto) {
+      const linha = primeiraLinhaCsv(texto);
+      const virgulas = contarDelimitadorForaAspas(linha, ",");
+      const pontoVirgulas = contarDelimitadorForaAspas(linha, ";");
+      return pontoVirgulas > virgulas ? ";" : ",";
+    }
+
+    function limparCabecalhoCsv(cabecalho) {
+      return String(cabecalho || "").replace(/^\uFEFF/, "").trim();
+    }
+
     function parseCSV(texto) {
+      const delimitador = detectarDelimitador(texto);
       const linhas = [];
       let linha = [];
       let campo = "";
@@ -1709,7 +1805,7 @@
           i++;
         } else if (c === '"') {
           aspas = !aspas;
-        } else if ((c === "," || c === ";") && !aspas) {
+        } else if (c === delimitador && !aspas) {
           linha.push(campo.trim());
           campo = "";
         } else if ((c === "\n" || c === "\r") && !aspas) {
@@ -1730,34 +1826,127 @@
         linhas.push(linha);
       }
 
-      const cabecalho = linhas.shift() || [];
-      return linhas.map(l => {
-        const obj = {};
-        cabecalho.forEach((col, idx) => { obj[col] = l[idx] ?? ""; });
-        return obj;
-      });
+      const cabecalho = (linhas.shift() || []).map(limparCabecalhoCsv);
+      return linhas
+        .filter(l => l.some(c => String(c || "").trim()))
+        .map(l => {
+          const obj = {};
+          cabecalho.forEach((col, idx) => {
+            if (col) obj[col] = l[idx] ?? "";
+          });
+          return obj;
+        });
     }
 
-    async function carregarCSV(url) {
+    function adicionarCacheBuster(url) {
+      const separador = url.includes("?") ? "&" : "?";
+      return `${url}${separador}_=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    function idPublicacao(url) {
+      const m = String(url || "").match(/\/d\/e\/([^/]+)\//);
+      return m ? m[1] : "";
+    }
+
+    function idPlanilhaEditavelValido() {
+      const id = String(CONFIG.planilhaIdEditavel || "").trim();
+      if (!id || id.includes("COLE_AQUI")) return "";
+      return id;
+    }
+
+    function urlGviz(nomeAba) {
+      const id = idPlanilhaEditavelValido();
+      if (!id) return "";
+      const sheet = encodeURIComponent(nomeAba);
+      const tq = encodeURIComponent("select *");
+      return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${sheet}&headers=1&tq=${tq}`;
+    }
+
+    function urlCsvPublicado(chave) {
+      const links = CONFIG.csvPublicado || {};
+      const url = String(links[chave] || "").trim();
+      if (!url) return "";
+
+      const idsDados = ["planoMensal", "restricoes", "planoSemanal", "efetivo", "diarioObra"]
+        .map(k => idPublicacao(links[k]))
+        .filter(Boolean);
+      const idPrincipal = idsDados[0] || "";
+
+      if (idPrincipal && idsDados.some(id => id !== idPrincipal)) {
+        throw new Error("As abas de dados em csvPublicado apontam para mais de um arquivo publicado. Publique todas as abas a partir do mesmo Google Sheets ou use planilhaIdEditavel/App Script.");
+      }
+
+      if (chave === "atualizacao" && idPrincipal && idPublicacao(url) && idPublicacao(url) !== idPrincipal) {
+        console.warn("A URL da aba Atualizacao aponta para outro arquivo publicado e será ignorada para evitar falso status de atualização.");
+        return "";
+      }
+
+      return url;
+    }
+
+    function urlParaAba(chave) {
+      const nomeAba = CONFIG.abas[chave];
+      const modo = CONFIG.fontePreferencial;
+
+      if ((modo === "gviz" || modo === "appsScript") && idPlanilhaEditavelValido()) {
+        return urlGviz(nomeAba);
+      }
+
+      return urlCsvPublicado(chave);
+    }
+
+    async function carregarCSV(url, nomeLogico = "CSV") {
       const urlLimpa = String(url || "").trim();
       if (!urlLimpa) return [];
 
-      const separador = urlLimpa.includes("?") ? "&" : "?";
-      const urlSemCache = `${urlLimpa}${separador}_=${Date.now()}`;
+      const resposta = await fetch(adicionarCacheBuster(urlLimpa), {
+        cache: "no-store",
+        credentials: "omit",
+        headers: { "Cache-Control": "no-cache" }
+      });
 
-      const resposta = await fetch(urlSemCache, { cache: "no-store" });
       if (!resposta.ok) {
-        throw new Error(`Erro ao carregar CSV (${resposta.status}): ${urlLimpa}`);
+        throw new Error(`Erro ao carregar ${nomeLogico} (${resposta.status}): ${urlLimpa}`);
       }
 
       const texto = await resposta.text();
+      const inicio = texto.trim().slice(0, 80).toLowerCase();
 
-      // Se o Google devolver uma página HTML de erro em vez de CSV, o painel avisa.
-      if (texto.trim().startsWith("<!DOCTYPE") || texto.trim().startsWith("<html")) {
-        throw new Error(`O link não retornou CSV. Confira se a aba foi publicada em formato CSV: ${urlLimpa}`);
+      if (inicio.startsWith("<!doctype") || inicio.startsWith("<html")) {
+        throw new Error(`${nomeLogico} não retornou CSV. Confira permissão, publicação e URL da aba: ${urlLimpa}`);
       }
 
       return parseCSV(texto);
+    }
+
+    async function carregarViaAppsScript() {
+      const base = String(CONFIG.appsScriptWebAppUrl || "").trim();
+      if (!base) return null;
+
+      const url = adicionarCacheBuster(`${base}${base.includes("?") ? "&" : "?"}action=all`);
+      const resposta = await fetch(url, { cache: "no-store", credentials: "omit" });
+      if (!resposta.ok) throw new Error(`Erro no Apps Script (${resposta.status}).`);
+
+      const json = await resposta.json();
+      if (!json.ok) throw new Error(json.erro || "Apps Script retornou erro ao ler a planilha.");
+
+      const abas = json.abas || {};
+      ultimaFonteDados = "Apps Script";
+
+      return {
+        planoMensal: abas[CONFIG.abas.planoMensal] || [],
+        restricoes: abas[CONFIG.abas.restricoes] || [],
+        planoSemanal: abas[CONFIG.abas.planoSemanal] || [],
+        efetivo: abas[CONFIG.abas.efetivo] || [],
+        diarioObra: abas[CONFIG.abas.diarioObra] || [],
+        atualizacao: [{ ultimaAtualizacao: json.ultimaAtualizacao || json.atualizadoEm || "" }]
+      };
+    }
+
+    async function carregarAba(chave) {
+      const nomeAba = CONFIG.abas[chave] || chave;
+      const url = urlParaAba(chave);
+      return carregarCSV(url, nomeAba);
     }
 
     function bool(valor) {
@@ -1828,83 +2017,118 @@
         }));
     }
 
+    function contarLinhasCarregadas(brutos) {
+      return {
+        mensal: brutos.planoMensal.length,
+        restricoes: brutos.restricoes.length,
+        semanal: brutos.planoSemanal.length,
+        efetivo: brutos.efetivo.length,
+        diario: brutos.diarioObra.length
+      };
+    }
+
+    function resumoLinhas() {
+      const c = ultimaContagemLinhas || {};
+      return `PM ${c.mensal || 0} | R ${c.restricoes || 0} | PS ${c.semanal || 0} | EF ${c.efetivo || 0} | DO ${c.diario || 0}`;
+    }
+
     async function carregarDados() {
+      if (carregamentoEmAndamento) return;
+      carregamentoEmAndamento = true;
+
       if (CONFIG.fonteDados !== "sheets") {
         dados = structuredClone(dadosBaseVazia);
         ultimaAtualizacaoPlanilha = "Fonte de dados não configurada como Google Sheets";
+        ultimaFonteDados = "Simulada";
+        ultimaContagemLinhas = {};
         inicializarFiltros();
         renderDashboard();
+        carregamentoEmAndamento = false;
         return;
       }
 
       try {
-        const [planoMensal, restricoes, planoSemanal, efetivo, diarioObra, atualizacao] = await Promise.all([
-          carregarCSV(CONFIG.googleSheetsCsv.planoMensal),
-          carregarCSV(CONFIG.googleSheetsCsv.restricoes),
-          carregarCSV(CONFIG.googleSheetsCsv.planoSemanal),
-          carregarCSV(CONFIG.googleSheetsCsv.efetivo),
-          carregarCSV(CONFIG.googleSheetsCsv.diarioObra),
-          carregarCSV(CONFIG.googleSheetsCsv.atualizacao)
-        ]);
+        let brutos = null;
 
-        ultimaAtualizacaoPlanilha = obterUltimaAtualizacao(atualizacao) || "Aba Atualizacao não vinculada";
+        if (CONFIG.fontePreferencial === "appsScript") {
+          brutos = await carregarViaAppsScript();
+        }
+
+        if (!brutos) {
+          const usandoGviz = Boolean(idPlanilhaEditavelValido()) && CONFIG.fontePreferencial !== "csvPublicado";
+          ultimaFonteDados = usandoGviz ? "Google Sheets gviz" : "CSV publicado";
+
+          const [planoMensal, restricoes, planoSemanal, efetivo, diarioObra, atualizacao] = await Promise.all([
+            carregarAba("planoMensal"),
+            carregarAba("restricoes"),
+            carregarAba("planoSemanal"),
+            carregarAba("efetivo"),
+            carregarAba("diarioObra"),
+            carregarAba("atualizacao")
+          ]);
+
+          brutos = { planoMensal, restricoes, planoSemanal, efetivo, diarioObra, atualizacao };
+        }
+
+        ultimaContagemLinhas = contarLinhasCarregadas(brutos);
+        ultimaAtualizacaoPlanilha = obterUltimaAtualizacao(brutos.atualizacao) || `Leitura do painel: ${new Date().toLocaleString("pt-BR")}`;
 
         dados = {
-          pacotes: planoMensal.map(p => ({
-            id: p.id,
-            semana: p.semana,
-            mes: p.mes,
-            local: p.local,
-            zona: p.zona,
-            atividade: p.atividade,
-            fornecedor: p.fornecedor,
-            disciplina: p.disciplina,
-            peso: numero(String(p.peso).replace(",", ".")),
-            inicio: p.inicio,
-            fim: p.fim,
-            projetoOK: bool(p.projetoOK),
-            materialOK: bool(p.materialOK),
-            equipeOK: bool(p.equipeOK),
-            equipamentoOK: bool(p.equipamentoOK),
-            segurancaOK: bool(p.segurancaOK),
-            predecessorasOK: bool(p.predecessorasOK),
-            statusLPS: p.statusLPS
-          })),
-          restricoes: restricoes.map(r => ({
-            id: r.id,
-            pacoteId: r.pacoteId,
-            tipo: r.tipo,
-            descricao: r.descricao,
-            responsavel: r.responsavel,
-            prazo: r.prazo,
-            impacto: r.impacto,
-            status: r.status
-          })),
-          planoSemanal: planoSemanal.map(s => ({
-            id: s.id,
-            semana: s.semana,
-            pacoteId: s.pacoteId,
-            local: s.local,
-            compromisso: s.compromisso,
-            atividade: s.atividade,
-            fornecedor: s.fornecedor,
-            disciplina: s.disciplina,
-            peso: numero(String(s.peso).replace(",", ".")),
-            planejado: bool(s.planejado),
-            concluido: bool(s.concluido),
-            status: s.status,
-            causa: s.causa,
-            observacao: s.observacao
-          })),
-          efetivo: efetivo.map(e => ({
-            data: campo(e, ["data", "Data", "dia", "Dia"]),
+          pacotes: brutos.planoMensal.map(p => ({
+            id: campo(p, ["id", "ID"]),
+            semana: campo(p, ["semana", "Semana"]),
+            mes: campo(p, ["mes", "mês", "Mes", "Mês"]),
+            local: campo(p, ["local", "Local", "frente", "Frente"]),
+            zona: campo(p, ["zona", "Zona"]),
+            atividade: campo(p, ["atividade", "Atividade"]),
+            fornecedor: campo(p, ["fornecedor", "Fornecedor", "empresa", "Empresa", "empreiteiro", "Empreiteiro"]),
+            disciplina: campo(p, ["disciplina", "Disciplina", "servico", "serviço", "Serviço"]),
+            peso: numero(campo(p, ["peso", "Peso", "%", "percentual"])),
+            inicio: normalizarData(campo(p, ["inicio", "início", "Inicio", "Início"])),
+            fim: normalizarData(campo(p, ["fim", "Fim", "termino", "término", "Termino", "Término"])),
+            projetoOK: bool(campo(p, ["projetoOK", "projeto ok", "Projeto OK"])),
+            materialOK: bool(campo(p, ["materialOK", "material ok", "Material OK"])),
+            equipeOK: bool(campo(p, ["equipeOK", "equipe ok", "Equipe OK"])),
+            equipamentoOK: bool(campo(p, ["equipamentoOK", "equipamento ok", "Equipamento OK"])),
+            segurancaOK: bool(campo(p, ["segurancaOK", "segurançaOK", "segurança ok", "Segurança OK"])),
+            predecessorasOK: bool(campo(p, ["predecessorasOK", "predecessoras ok", "Predecessoras OK"])),
+            statusLPS: campo(p, ["statusLPS", "status lps", "Status LPS", "status"])
+          })).filter(p => p.id || p.atividade),
+          restricoes: brutos.restricoes.map(r => ({
+            id: campo(r, ["id", "ID"]),
+            pacoteId: campo(r, ["pacoteId", "pacote id", "idPacote", "pacote"]),
+            tipo: campo(r, ["tipo", "Tipo"]),
+            descricao: campo(r, ["descricao", "descrição", "Descricao", "Descrição", "restrição", "restricao"]),
+            responsavel: campo(r, ["responsavel", "responsável", "Responsável"]),
+            prazo: normalizarData(campo(r, ["prazo", "Prazo", "data limite", "Data limite"])),
+            impacto: campo(r, ["impacto", "Impacto"]),
+            status: campo(r, ["status", "Status"])
+          })).filter(r => r.id || r.descricao || r.pacoteId),
+          planoSemanal: brutos.planoSemanal.map(s => ({
+            id: campo(s, ["id", "ID"]),
+            semana: campo(s, ["semana", "Semana"]),
+            pacoteId: campo(s, ["pacoteId", "pacote id", "idPacote", "pacote"]),
+            local: campo(s, ["local", "Local", "frente", "Frente"]),
+            compromisso: campo(s, ["compromisso", "Compromisso"]),
+            atividade: campo(s, ["atividade", "Atividade"]),
+            fornecedor: campo(s, ["fornecedor", "Fornecedor", "empresa", "Empresa", "empreiteiro", "Empreiteiro"]),
+            disciplina: campo(s, ["disciplina", "Disciplina", "servico", "serviço", "Serviço"]),
+            peso: numero(campo(s, ["peso", "Peso", "%", "percentual"])),
+            planejado: bool(campo(s, ["planejado", "Planejado"])),
+            concluido: bool(campo(s, ["concluido", "concluído", "Concluído"])),
+            status: campo(s, ["status", "Status"]),
+            causa: campo(s, ["causa", "Causa", "causa de não conclusão", "CNC"]),
+            observacao: campo(s, ["observacao", "observação", "Observação"])
+          })).filter(s => s.id || s.compromisso || s.atividade),
+          efetivo: brutos.efetivo.map(e => ({
+            data: normalizarData(campo(e, ["data", "Data", "dia", "Dia"])),
             semana: campo(e, ["semana", "Semana"]),
             fornecedor: campo(e, ["fornecedor", "Fornecedor", "empresa", "Empresa", "empreiteiro", "Empreiteiro"]),
             disciplina: campo(e, ["disciplina", "Disciplina", "servico", "serviço", "atividade", "Atividade"]),
             trabalhadores: numero(campo(e, ["trabalhadores", "Trabalhadores", "efetivo", "Efetivo", "funcionarios", "funcionários", "Total", "total"]))
           })).filter(e => e.data || e.semana || e.fornecedor || e.disciplina || e.trabalhadores),
-          diarioObra: diarioObra.map(d => ({
-            data: campo(d, ["data", "Data"]),
+          diarioObra: brutos.diarioObra.map(d => ({
+            data: normalizarData(campo(d, ["data", "Data"])),
             semana: campo(d, ["semana", "Semana"]),
             pacoteId: campo(d, ["pacoteId", "pacote", "idPacote"]),
             local: campo(d, ["local", "Local"]),
@@ -1915,8 +2139,8 @@
             unidade: campo(d, ["unidade", "Unidade"]),
             impedimento: campo(d, ["impedimento", "Impedimento"]),
             retrabalho: bool(campo(d, ["retrabalho", "Retrabalho"]))
-          })),
-          historicoPpc: calcularHistoricoPpc(planoSemanal)
+          })).filter(d => d.data || d.local || d.fornecedor || d.quantidade || d.impedimento),
+          historicoPpc: calcularHistoricoPpc(brutos.planoSemanal)
         };
 
         inicializarFiltros();
@@ -1925,9 +2149,12 @@
         console.error(erro);
         dados = structuredClone(dadosBaseVazia);
         ultimaAtualizacaoPlanilha = "Erro ao carregar dados da planilha";
+        ultimaContagemLinhas = {};
         inicializarFiltros();
         renderDashboard();
-        alert(`Não foi possível carregar o Google Sheets.\n\nDetalhe: ${erro.message}\n\nConfira se o arquivo está publicado no GitHub Pages ou em outro servidor. Ao abrir o HTML direto como arquivo local, alguns navegadores bloqueiam a leitura dos CSVs.`);
+        alert(`Não foi possível carregar os dados da planilha.\n\nDetalhe: ${erro.message}\n\nVerifique se você colou a URL do Apps Script ou o ID editável da planilha no CONFIG e se as abas mantêm os nomes esperados.`);
+      } finally {
+        carregamentoEmAndamento = false;
       }
     }
 
