@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard GVD LPS - v3</title>
+  <title>Dashboard GVD LPS - v4</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -495,13 +495,14 @@
       <div class="header-actions">
         <span class="pill">Fonte: <strong id="fonte-dados">Carregando...</strong></span>
         <span class="pill">Atualização da planilha: <strong id="data-atualizacao">--</strong></span>
+        <button class="button secondary" id="btn-atualizar">Atualizar agora</button>
         <button class="button secondary" id="btn-limpar">Limpar filtros</button>
         <button class="button" id="btn-exportar">Exportar visão CSV</button>
       </div>
     </section>
 
     <section class="note">
-      <strong>Preparado para Google Sheets:</strong> esta versão busca os dados diretamente das abas publicadas em CSV no Google Sheets. As abas previstas são: <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code>, <code>Diario_Obra</code> e <code>Atualizacao</code>.<br><strong>Interatividade:</strong> clique nos gráficos, nas legendas ou nas linhas de efetivo para filtrar automaticamente o painel.
+      <strong>Preparado para Google Sheets:</strong> esta versão busca os dados diretamente das abas publicadas em CSV no Google Sheets. Para o efetivo diário, a aba <code>Efetivo</code> deve conter as colunas <code>data</code>, <code>semana</code>, <code>fornecedor</code>, <code>disciplina</code> e <code>trabalhadores</code>. As demais abas previstas são: <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Diario_Obra</code> e <code>Atualizacao</code>.<br><strong>Interatividade:</strong> clique nos gráficos, nas legendas ou nas linhas de efetivo para filtrar automaticamente o painel.
     </section>
 
     <section class="filters" aria-label="Filtros do dashboard">
@@ -561,9 +562,9 @@
         <div class="kpi-help">Pendências com prazo ultrapassado.</div>
       </article>
       <article class="kpi-card gray">
-        <div class="kpi-label">Efetivo total</div>
+        <div class="kpi-label">Efetivo diário</div>
         <div class="kpi-value" id="kpi-efetivo">0</div>
-        <div class="kpi-help">Total de trabalhadores na visão atual.</div>
+        <div class="kpi-help">Trabalhadores no último dia registrado.</div>
       </article>
     </section>
 
@@ -721,14 +722,17 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">9. Efetivo por fornecedor</h2>
-            <p class="card-subtitle">Base para analisar trabalhadores disponíveis x compromisso assumido.</p>
+            <h2 class="card-title">9. Efetivo diário por empreiteiro</h2>
+            <p class="card-subtitle">Quantidade de trabalhadores por fornecedor ao longo da semana.</p>
           </div>
         </div>
+        <div class="chart-box small"><canvas id="chart-efetivo-diario"></canvas></div>
         <div class="scroll">
           <table>
             <thead>
               <tr>
+                <th>Data</th>
+                <th>Semana</th>
                 <th>Fornecedor</th>
                 <th>Disciplina</th>
                 <th class="center">Trabalhadores</th>
@@ -786,7 +790,7 @@
     // 4) Cole as URLs abaixo.
     const CONFIG = {
       fonteDados: "sheets", // versão final: buscar dados no Google Sheets
-      atualizacaoAutomaticaMinutos: 0.5,
+      atualizacaoAutomaticaMinutos: 1,
       googleSheetsCsv: {
         planoMensal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=1451603694&single=true&output=csv",
         restricoes: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFDT4_XTq80a1DJixBgsahIInIcyL20bVJKamRRsDGHJYuUPYX5tMkqzyedxTGmQ/pub?gid=274682131&single=true&output=csv",
@@ -875,10 +879,23 @@
       return `${valor.toFixed(1).replace(".", ",")}%`;
     }
 
-    function formatarData(dataISO) {
-      if (!dataISO) return "-";
-      const [ano, mes, dia] = dataISO.split("-");
-      return `${dia}/${mes}/${ano}`;
+    function formatarData(dataValor) {
+      if (!dataValor) return "-";
+
+      const texto = String(dataValor).trim();
+
+      // Google Sheets em CSV pode retornar datas como dd/mm/aaaa.
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(texto)) {
+        return texto.split(" ")[0];
+      }
+
+      // Ou como aaaa-mm-dd.
+      if (/^\d{4}-\d{1,2}-\d{1,2}/.test(texto)) {
+        const [ano, mes, dia] = texto.slice(0, 10).split("-");
+        return `${dia.padStart(2, "0")}/${mes.padStart(2, "0")}/${ano}`;
+      }
+
+      return texto;
     }
 
     function hojeISO() {
@@ -1005,30 +1022,76 @@
       return "";
     }
 
-    function semanaMaisRecente(lista) {
-      const semanas = [...new Set((lista || []).map(item => item.semana).filter(Boolean))];
+    function valorData(dataValor) {
+      if (!dataValor) return 0;
 
-      if (!semanas.length) return "";
+      const texto = String(dataValor).trim();
 
-      return semanas.sort((a, b) => String(a).localeCompare(String(b), "pt-BR", {
-        numeric: true,
-        sensitivity: "base"
-      })).at(-1);
+      const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (br) {
+        const [, dia, mes, ano] = br;
+        return new Date(Number(ano), Number(mes) - 1, Number(dia)).getTime();
+      }
+
+      const iso = texto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (iso) {
+        const [, ano, mes, dia] = iso;
+        return new Date(Number(ano), Number(mes) - 1, Number(dia)).getTime();
+      }
+
+      const parsed = Date.parse(texto);
+      return Number.isFinite(parsed) ? parsed : 0;
     }
 
-    function filtrarEfetivo(lista) {
-      const semanaBase = estado.semana || semanaMaisRecente(lista);
+    function ordenarPorData(a, b) {
+      return valorData(a) - valorData(b);
+    }
 
+    function dataMaisRecente(lista) {
+      const datas = [...new Set((lista || []).map(item => item.data).filter(Boolean))];
+
+      if (!datas.length) return "";
+
+      return datas.sort(ordenarPorData).at(-1);
+    }
+
+    function filtrarEfetivoDiario(lista) {
       return (lista || []).filter(item => {
-        const semanaOK = !semanaBase || item.semana === semanaBase;
+        const semanaOK = !estado.semana || item.semana === estado.semana;
         const fornecedorOK = !estado.fornecedor || item.fornecedor === estado.fornecedor;
         const disciplinaOK = !estado.disciplina || item.disciplina === estado.disciplina;
         const buscaOK = !estado.busca || textoBusca(item).includes(estado.busca.toLowerCase());
 
-        // Importante: não aplica filtro de local, porque a aba Efetivo não tem coluna "local".
-        // Se o filtro de local fosse aplicado aqui, o efetivo viraria zero.
+        // Não aplica filtro de local, porque a aba Efetivo não tem coluna local.
         return semanaOK && fornecedorOK && disciplinaOK && buscaOK;
       });
+    }
+
+    function efetivoUltimoDia(lista) {
+      const filtrado = filtrarEfetivoDiario(lista);
+      const comData = filtrado.filter(item => item.data);
+
+      if (!comData.length) return filtrado;
+
+      const ultimaData = dataMaisRecente(comData);
+      return comData.filter(item => item.data === ultimaData);
+    }
+
+    function agregarEfetivoPorDataFornecedor(lista) {
+      const mapa = new Map();
+
+      (lista || []).forEach(item => {
+        if (!item.data || !item.fornecedor) return;
+
+        const chave = `${item.data}|||${item.fornecedor}`;
+        mapa.set(chave, {
+          data: item.data,
+          fornecedor: item.fornecedor,
+          trabalhadores: (mapa.get(chave)?.trabalhadores || 0) + numero(item.trabalhadores)
+        });
+      });
+
+      return [...mapa.values()];
     }
 
 
@@ -1038,7 +1101,7 @@
       const restricoes = filtrarRestricoes();
       const restricoesAbertas = restricoes.filter(r => r.status !== "Removida");
       const restricoesVencidas = restricoes.filter(restricaoVencida);
-      const efetivo = filtrarEfetivo(dados.efetivo);
+      const efetivo = efetivoUltimoDia(dados.efetivo);
 
       const concluidas = semanal.filter(t => t.concluido);
       const ppc = semanal.length ? (concluidas.length / semanal.length) * 100 : 0;
@@ -1193,15 +1256,18 @@
     function renderEfetivo() {
       const tbody = qs("#tabela-efetivo");
       limparElemento(tbody);
-      const efetivo = filtrarEfetivo(dados.efetivo);
+      const efetivo = filtrarEfetivoDiario(dados.efetivo)
+        .sort((a, b) => ordenarPorData(a.data, b.data) || String(a.fornecedor).localeCompare(String(b.fornecedor), "pt-BR"));
 
       if (!efetivo.length) {
-        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhum efetivo encontrado.", className: "empty", colspan: "3" })]));
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhum efetivo diário encontrado. Verifique se a aba Efetivo possui as colunas data, semana, fornecedor, disciplina e trabalhadores.", className: "empty", colspan: "5" })]));
         return;
       }
 
       efetivo.forEach(e => {
         const tr = criar("tr", { className: "click-row", title: "Clique para filtrar por este fornecedor" }, [
+          criarCelula(formatarData(e.data), "nowrap"),
+          criarCelula(e.semana, "nowrap"),
           criarCelula(e.fornecedor),
           criarCelula(e.disciplina),
           criarCelula(e.trabalhadores, "center")
@@ -1484,6 +1550,59 @@
             }
           },
           scales: { y: { beginAtZero: true, suggestedMax: 100, ticks: { callback: value => `${value}%` } } }
+        }
+      });
+
+
+      const efetivoDiario = agregarEfetivoPorDataFornecedor(filtrarEfetivoDiario(dados.efetivo));
+      const datasEfetivo = [...new Set(efetivoDiario.map(i => i.data))]
+        .sort(ordenarPorData);
+      const fornecedoresEfetivo = [...new Set(efetivoDiario.map(i => i.fornecedor))]
+        .sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+
+      criarGrafico("chart-efetivo-diario", {
+        type: "line",
+        data: {
+          labels: datasEfetivo.length ? datasEfetivo.map(formatarData) : ["Sem dados"],
+          datasets: fornecedoresEfetivo.length
+            ? fornecedoresEfetivo.map(fornecedor => ({
+                label: fornecedor,
+                data: datasEfetivo.map(data => {
+                  const registro = efetivoDiario.find(i => i.data === data && i.fornecedor === fornecedor);
+                  return registro ? registro.trabalhadores : null;
+                }),
+                tension: 0.25,
+                spanGaps: true
+              }))
+            : [{ label: "Sem dados", data: [0], tension: 0.25 }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (_, elementos) => {
+            if (!elementos.length || !datasEfetivo.length) return;
+            const dataSelecionada = datasEfetivo[elementos[0].index];
+            estado.busca = formatarData(dataSelecionada);
+            inicializarFiltros();
+            renderDashboard();
+          },
+          onHover: (event, elementos) => {
+            event.native.target.style.cursor = elementos.length && datasEfetivo.length ? "pointer" : "default";
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                title: itens => itens?.[0]?.label || "",
+                label: contexto => `${contexto.dataset.label}: ${contexto.parsed.y ?? 0} trabalhadores`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
         }
       });
 
@@ -1778,11 +1897,12 @@
             observacao: s.observacao
           })),
           efetivo: efetivo.map(e => ({
+            data: campo(e, ["data", "Data", "dia", "Dia"]),
             semana: campo(e, ["semana", "Semana"]),
-            fornecedor: campo(e, ["fornecedor", "Fornecedor", "empresa", "Empresa"]),
-            disciplina: campo(e, ["disciplina", "Disciplina", "servico", "serviço"]),
-            trabalhadores: numero(campo(e, ["trabalhadores", "Trabalhadores", "efetivo", "Efetivo", "total", "Total"]))
-          })).filter(e => e.semana || e.fornecedor || e.disciplina || e.trabalhadores),
+            fornecedor: campo(e, ["fornecedor", "Fornecedor", "empresa", "Empresa", "empreiteiro", "Empreiteiro"]),
+            disciplina: campo(e, ["disciplina", "Disciplina", "servico", "serviço", "atividade", "Atividade"]),
+            trabalhadores: numero(campo(e, ["trabalhadores", "Trabalhadores", "efetivo", "Efetivo", "funcionarios", "funcionários", "Total", "total"]))
+          })).filter(e => e.data || e.semana || e.fornecedor || e.disciplina || e.trabalhadores),
           diarioObra: diarioObra.map(d => ({
             data: campo(d, ["data", "Data"]),
             semana: campo(d, ["semana", "Semana"]),
@@ -1831,6 +1951,21 @@
       });
 
       qs("#btn-exportar").addEventListener("click", exportarVisaoCSV);
+
+      qs("#btn-atualizar").addEventListener("click", async () => {
+        const botao = qs("#btn-atualizar");
+        const textoOriginal = botao.textContent;
+
+        botao.disabled = true;
+        botao.textContent = "Atualizando...";
+
+        try {
+          await carregarDados();
+        } finally {
+          botao.disabled = false;
+          botao.textContent = textoOriginal;
+        }
+      });
     }
 
     registrarEventos();
