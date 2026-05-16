@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard GVD LPS</title>
+  <title>Dashboard GVD LPS - v3</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -493,7 +493,7 @@
         <p>Modelo para controle de médio prazo, restrições, plano semanal, PPC e causas de não conclusão.</p>
       </div>
       <div class="header-actions">
-        <span class="pill">Fonte: <strong id="fonte-dados">Simulada</strong></span>
+        <span class="pill">Fonte: <strong id="fonte-dados">Carregando...</strong></span>
         <span class="pill">Atualização da planilha: <strong id="data-atualizacao">--</strong></span>
         <button class="button secondary" id="btn-limpar">Limpar filtros</button>
         <button class="button" id="btn-exportar">Exportar visão CSV</button>
@@ -501,7 +501,7 @@
     </section>
 
     <section class="note">
-      <strong>Preparado para Google Sheets:</strong> esta versão está com dados representativos de uma obra em Porto Alegre/RS, utilizados para fim de representação do estudo de caso apresentado no TCC de Lucas Mello de Resende - CARTÃO UFRGS: 00324885. O painel só exibirá informações depois que as URLs CSV das abas do Google Sheets forem coladas no objeto <code>CONFIG.googleSheetsCsv</code>. Depois, basta publicar cada aba da planilha como CSV e preencher as URLs no objeto <code>CONFIG.googleSheetsCsv</code>. As abas previstas são: <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code>, <code>Diario_Obra</code> e <code>Atualizacao</code>.<br><strong>Interatividade:</strong> clique nos gráficos, nas legendas ou nas linhas de efetivo para filtrar automaticamente o painel.
+      <strong>Preparado para Google Sheets:</strong> esta versão busca os dados diretamente das abas publicadas em CSV no Google Sheets. As abas previstas são: <code>Plano_Mensal</code>, <code>Restricoes</code>, <code>Plano_Semanal</code>, <code>Efetivo</code>, <code>Diario_Obra</code> e <code>Atualizacao</code>.<br><strong>Interatividade:</strong> clique nos gráficos, nas legendas ou nas linhas de efetivo para filtrar automaticamente o painel.
     </section>
 
     <section class="filters" aria-label="Filtros do dashboard">
@@ -798,7 +798,7 @@
     };
 
     // =========================================================
-    // DADOS GENÉRICOS PARA PROTÓTIPO
+    // BASE VAZIA: OS DADOS REAIS VÊM DO GOOGLE SHEETS
     // =========================================================
     const dadosBaseVazia = {
       efetivo: [],
@@ -849,7 +849,19 @@
     }
 
     function numero(valor) {
-      const n = Number(valor);
+      if (valor === null || valor === undefined) return 0;
+
+      let texto = String(valor).trim();
+      if (!texto) return 0;
+
+      // Aceita números vindos do Google Sheets em formatos como "12", "12,5" ou "1.234,5".
+      texto = texto.replace(/\s/g, "");
+
+      if (texto.includes(",")) {
+        texto = texto.replace(/\./g, "").replace(",", ".");
+      }
+
+      const n = Number(texto);
       return Number.isFinite(n) ? n : 0;
     }
 
@@ -970,13 +982,63 @@
       return lista.reduce((acc, item) => acc + numero(item[campo]), 0);
     }
 
+    function normalizarChave(valor) {
+      return String(valor || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+    }
+
+    function campo(obj, nomesPossiveis) {
+      const mapa = new Map();
+
+      Object.keys(obj || {}).forEach(chave => {
+        mapa.set(normalizarChave(chave), obj[chave]);
+      });
+
+      for (const nome of nomesPossiveis) {
+        const valor = mapa.get(normalizarChave(nome));
+        if (valor !== undefined) return valor;
+      }
+
+      return "";
+    }
+
+    function semanaMaisRecente(lista) {
+      const semanas = [...new Set((lista || []).map(item => item.semana).filter(Boolean))];
+
+      if (!semanas.length) return "";
+
+      return semanas.sort((a, b) => String(a).localeCompare(String(b), "pt-BR", {
+        numeric: true,
+        sensitivity: "base"
+      })).at(-1);
+    }
+
+    function filtrarEfetivo(lista) {
+      const semanaBase = estado.semana || semanaMaisRecente(lista);
+
+      return (lista || []).filter(item => {
+        const semanaOK = !semanaBase || item.semana === semanaBase;
+        const fornecedorOK = !estado.fornecedor || item.fornecedor === estado.fornecedor;
+        const disciplinaOK = !estado.disciplina || item.disciplina === estado.disciplina;
+        const buscaOK = !estado.busca || textoBusca(item).includes(estado.busca.toLowerCase());
+
+        // Importante: não aplica filtro de local, porque a aba Efetivo não tem coluna "local".
+        // Se o filtro de local fosse aplicado aqui, o efetivo viraria zero.
+        return semanaOK && fornecedorOK && disciplinaOK && buscaOK;
+      });
+    }
+
+
     function renderKPIs() {
       const pacotes = filtrar(dados.pacotes);
       const semanal = filtrar(dados.planoSemanal).filter(t => t.planejado);
       const restricoes = filtrarRestricoes();
       const restricoesAbertas = restricoes.filter(r => r.status !== "Removida");
       const restricoesVencidas = restricoes.filter(restricaoVencida);
-      const efetivo = filtrar(dados.efetivo);
+      const efetivo = filtrarEfetivo(dados.efetivo);
 
       const concluidas = semanal.filter(t => t.concluido);
       const ppc = semanal.length ? (concluidas.length / semanal.length) * 100 : 0;
@@ -1131,7 +1193,7 @@
     function renderEfetivo() {
       const tbody = qs("#tabela-efetivo");
       limparElemento(tbody);
-      const efetivo = filtrar(dados.efetivo);
+      const efetivo = filtrarEfetivo(dados.efetivo);
 
       if (!efetivo.length) {
         tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhum efetivo encontrado.", className: "empty", colspan: "3" })]));
@@ -1716,23 +1778,23 @@
             observacao: s.observacao
           })),
           efetivo: efetivo.map(e => ({
-            semana: e.semana,
-            fornecedor: e.fornecedor,
-            disciplina: e.disciplina,
-            trabalhadores: numero(e.trabalhadores)
-          })),
+            semana: campo(e, ["semana", "Semana"]),
+            fornecedor: campo(e, ["fornecedor", "Fornecedor", "empresa", "Empresa"]),
+            disciplina: campo(e, ["disciplina", "Disciplina", "servico", "serviço"]),
+            trabalhadores: numero(campo(e, ["trabalhadores", "Trabalhadores", "efetivo", "Efetivo", "total", "Total"]))
+          })).filter(e => e.semana || e.fornecedor || e.disciplina || e.trabalhadores),
           diarioObra: diarioObra.map(d => ({
-            data: d.data,
-            semana: d.semana,
-            pacoteId: d.pacoteId,
-            local: d.local,
-            fornecedor: d.fornecedor,
-            disciplina: d.disciplina,
-            trabalhadores: numero(d.trabalhadores),
-            quantidade: numero(String(d.quantidade).replace(",", ".")),
-            unidade: d.unidade,
-            impedimento: d.impedimento,
-            retrabalho: bool(d.retrabalho)
+            data: campo(d, ["data", "Data"]),
+            semana: campo(d, ["semana", "Semana"]),
+            pacoteId: campo(d, ["pacoteId", "pacote", "idPacote"]),
+            local: campo(d, ["local", "Local"]),
+            fornecedor: campo(d, ["fornecedor", "Fornecedor", "empresa", "Empresa"]),
+            disciplina: campo(d, ["disciplina", "Disciplina"]),
+            trabalhadores: numero(campo(d, ["trabalhadores", "Trabalhadores", "efetivo", "Efetivo"])),
+            quantidade: numero(campo(d, ["quantidade", "Quantidade"])),
+            unidade: campo(d, ["unidade", "Unidade"]),
+            impedimento: campo(d, ["impedimento", "Impedimento"]),
+            retrabalho: bool(campo(d, ["retrabalho", "Retrabalho"]))
           })),
           historicoPpc: calcularHistoricoPpc(planoSemanal)
         };
@@ -1742,6 +1804,7 @@
       } catch (erro) {
         console.error(erro);
         dados = structuredClone(dadosBaseVazia);
+        ultimaAtualizacaoPlanilha = "Erro ao carregar dados da planilha";
         inicializarFiltros();
         renderDashboard();
         alert(`Não foi possível carregar o Google Sheets.\n\nDetalhe: ${erro.message}\n\nConfira se o arquivo está publicado no GitHub Pages ou em outro servidor. Ao abrir o HTML direto como arquivo local, alguns navegadores bloqueiam a leitura dos CSVs.`);
