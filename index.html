@@ -244,6 +244,12 @@
       min-width: 0;
     }
 
+    .kanban-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
     .card-header {
       display: flex;
       align-items: flex-start;
@@ -367,6 +373,13 @@
       background: #ffffff;
     }
 
+    .kanban-card .kanban {
+      flex: none;
+      height: 330px;
+      max-height: 330px;
+      min-height: 0;
+    }
+
     .kanban-col {
       background: #f8fafc;
       border: 1px solid var(--line);
@@ -375,6 +388,8 @@
       min-height: 0;
       align-self: start;
     }
+
+    .kanban-card .kanban-col { align-self: stretch; }
 
     .kanban-col.nao-liberado {
       background: #fff7ed;
@@ -495,6 +510,7 @@
       .kpi-grid { grid-template-columns: repeat(3, 1fr); }
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .filters { grid-template-columns: repeat(2, 1fr); }
+      .kanban-card .kanban { height: auto; }
     }
 
     @media (max-width: 720px) {
@@ -751,7 +767,7 @@
     </section>
 
     <section class="grid-2">
-      <article class="card">
+      <article class="card kanban-card">
         <div class="card-header">
           <div>
             <h2 class="card-title">8. Kanban do fluxo semanal</h2>
@@ -761,7 +777,7 @@
         <div id="kanban" class="kanban"></div>
       </article>
 
-      <article class="card">
+      <article class="card efetivo-card">
         <div class="card-header">
           <div>
             <h2 class="card-title">9. Efetivo diário por empreiteiro</h2>
@@ -1819,6 +1835,34 @@
       renderEfetivo();
       renderKanban();
       renderGraficos();
+      requestAnimationFrame(ajustarAlturaKanban);
+    }
+
+    function ajustarAlturaKanban() {
+      const kanban = qs("#kanban");
+      const kanbanCard = document.querySelector(".kanban-card");
+      const efetivoCard = document.querySelector(".efetivo-card");
+
+      if (!kanban || !kanbanCard || !efetivoCard) return;
+
+      if (window.matchMedia("(max-width: 1200px)").matches) {
+        kanban.style.height = "";
+        kanban.style.maxHeight = "";
+        return;
+      }
+
+      const header = kanbanCard.querySelector(".card-header");
+      const cardStyle = getComputedStyle(kanbanCard);
+      const headerStyle = header ? getComputedStyle(header) : null;
+      const paddingVertical = (parseFloat(cardStyle.paddingTop) || 0) + (parseFloat(cardStyle.paddingBottom) || 0);
+      const headerAltura = header
+        ? header.getBoundingClientRect().height + (parseFloat(headerStyle.marginBottom) || 0)
+        : 0;
+      const alturaDisponivel = efetivoCard.getBoundingClientRect().height - paddingVertical - headerAltura;
+      const alturaFinal = Math.max(300, Math.floor(alturaDisponivel));
+
+      kanban.style.height = `${alturaFinal}px`;
+      kanban.style.maxHeight = `${alturaFinal}px`;
     }
 
     function csvLinha(valores) {
@@ -2284,6 +2328,8 @@
           botao.textContent = textoOriginal;
         }
       });
+
+      window.addEventListener("resize", () => requestAnimationFrame(ajustarAlturaKanban));
     }
 
     registrarEventos();
