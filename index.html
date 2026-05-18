@@ -697,11 +697,11 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">6. Causas de não conclusão — CNC</h2>
-            <p class="card-subtitle">Diagnóstico para reduzir variabilidade, perdas e interrupções de fluxo.</p>
+            <h2 class="card-title">10. Status das restrições</h2>
+            <p class="card-subtitle">Aberta, em tratamento, removida ou vencida.</p>
           </div>
         </div>
-        <div class="chart-box"><canvas id="chart-cnc"></canvas></div>
+        <div class="chart-box small"><canvas id="chart-restricoes"></canvas></div>
       </article>
     </section>
 
@@ -742,15 +742,25 @@
       <article class="card">
         <div class="card-header">
           <div>
+            <h2 class="card-title">6. Causas de não conclusão — CNC</h2>
+            <p class="card-subtitle">Diagnóstico para reduzir variabilidade, perdas e interrupções de fluxo.</p>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="chart-cnc"></canvas></div>
+      </article>
+    </section>
+
+    <section class="grid-2">
+      <article class="card">
+        <div class="card-header">
+          <div>
             <h2 class="card-title">8. Kanban do fluxo semanal</h2>
             <p class="card-subtitle">Visualização rápida do estado dos pacotes de trabalho.</p>
           </div>
         </div>
         <div id="kanban" class="kanban"></div>
       </article>
-    </section>
 
-    <section class="grid-2">
       <article class="card">
         <div class="card-header">
           <div>
@@ -773,16 +783,6 @@
             <tbody id="tabela-efetivo"></tbody>
           </table>
         </div>
-      </article>
-
-      <article class="card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">10. Status das restrições</h2>
-            <p class="card-subtitle">Aberta, em tratamento, removida ou vencida.</p>
-          </div>
-        </div>
-        <div class="chart-box small"><canvas id="chart-restricoes"></canvas></div>
       </article>
     </section>
   </main>
