@@ -546,6 +546,7 @@
         <button class="button secondary" id="btn-atualizar">Atualizar agora</button>
         <button class="button secondary" id="btn-limpar">Limpar filtros</button>
         <button class="button" id="btn-exportar">Exportar visão CSV</button>
+        <button class="button" id="btn-visao-empreiteiros">Visão reunião PPC</button>
       </div>
     </section>
 
@@ -924,13 +925,13 @@
     }
 
     function percentual(valor) {
-      if (!Number.isFinite(valor)) return "0%";
-      return `${Math.round(valor)}%`;
+      if (!Number.isFinite(valor)) return "0,00%";
+      return `${valor.toFixed(2).replace(".", ",")}%`;
     }
 
     function percentual1(valor) {
-      if (!Number.isFinite(valor)) return "0,0%";
-      return `${valor.toFixed(1).replace(".", ",")}%`;
+      if (!Number.isFinite(valor)) return "0,00%";
+      return `${valor.toFixed(2).replace(".", ",")}%`;
     }
 
     function serialPlanilhaParaISO(valor) {
@@ -1480,6 +1481,55 @@
         ctx.strokeStyle = options.lineColor || "rgba(100, 116, 139, 0.55)";
         ctx.lineWidth = 1;
 
+        const connectorOffset = options.connectorOffset || 16;
+        const connectorLength = options.connectorLength || 24;
+        const minSpacing = options.minSpacing || 16;
+        const canvasPadding = options.canvasPadding || 10;
+        const maxTextWidth = options.maxTextWidth || 150;
+        const lados = { left: [], right: [] };
+
+        function limitarTexto(texto, larguraMaxima) {
+          const sufixo = "...";
+
+          if (ctx.measureText(texto).width <= larguraMaxima) return texto;
+
+          let reduzido = texto;
+          while (reduzido.length > 3 && ctx.measureText(`${reduzido}${sufixo}`).width > larguraMaxima) {
+            reduzido = reduzido.slice(0, -1);
+          }
+
+          return `${reduzido.trim()}${sufixo}`;
+        }
+
+        function distribuirVerticalmente(itens) {
+          if (!itens.length) return;
+
+          const topo = canvasPadding;
+          const base = chart.height - canvasPadding;
+          const espacamento = itens.length > 1
+            ? Math.min(minSpacing, Math.max(10, (base - topo) / (itens.length - 1)))
+            : minSpacing;
+
+          itens.sort((a, b) => a.yNatural - b.yNatural);
+
+          itens.forEach((item, index) => {
+            const anterior = itens[index - 1];
+            item.yFinal = Math.max(topo, Math.min(base, item.yNatural));
+            if (anterior) item.yFinal = Math.max(item.yFinal, anterior.yFinal + espacamento);
+          });
+
+          for (let index = itens.length - 1; index >= 0; index--) {
+            const proximo = itens[index + 1];
+            const item = itens[index];
+            item.yFinal = Math.min(item.yFinal, base);
+            if (proximo) item.yFinal = Math.min(item.yFinal, proximo.yFinal - espacamento);
+          }
+
+          itens.forEach(item => {
+            item.yFinal = Math.max(topo, Math.min(base, item.yFinal));
+          });
+        }
+
         meta.data.forEach((arc, index) => {
           const value = numero(dataset.data[index]);
           if (!value && total > 0) return;
@@ -1489,23 +1539,41 @@
           const angle = (props.startAngle + props.endAngle) / 2;
           const cos = Math.cos(angle);
           const sin = Math.sin(angle);
-          const startX = props.x + cos * (props.outerRadius + 3);
-          const startY = props.y + sin * (props.outerRadius + 3);
-          const midX = props.x + cos * (props.outerRadius + 16);
-          const midY = props.y + sin * (props.outerRadius + 16);
-          const endX = midX + (cos >= 0 ? 24 : -24);
-          const textX = endX + (cos >= 0 ? 4 : -4);
-          const textY = midY;
+          const lado = cos >= 0 ? "right" : "left";
+          lados[lado].push({
+            cos,
+            sin,
+            lado,
+            props,
+            texto: formatter(label, value, total),
+            yNatural: props.y + sin * (props.outerRadius + connectorOffset)
+          });
+        });
+
+        distribuirVerticalmente(lados.left);
+        distribuirVerticalmente(lados.right);
+
+        [...lados.left, ...lados.right].forEach(item => {
+          const sinal = item.lado === "right" ? 1 : -1;
+          const startX = item.props.x + item.cos * (item.props.outerRadius + 3);
+          const startY = item.props.y + item.sin * (item.props.outerRadius + 3);
+          const midX = item.props.x + sinal * (item.props.outerRadius + connectorOffset);
+          const endX = midX + sinal * connectorLength;
+          const textX = endX + sinal * 4;
+          const larguraDisponivel = item.lado === "right"
+            ? chart.width - textX - canvasPadding
+            : textX - canvasPadding;
+          const texto = limitarTexto(item.texto, Math.min(maxTextWidth, Math.max(64, larguraDisponivel)));
 
           ctx.beginPath();
           ctx.moveTo(startX, startY);
-          ctx.lineTo(midX, midY);
-          ctx.lineTo(endX, midY);
+          ctx.lineTo(midX, item.yNatural);
+          ctx.lineTo(endX, item.yFinal);
           ctx.stroke();
 
-          ctx.textAlign = cos >= 0 ? "left" : "right";
+          ctx.textAlign = item.lado === "right" ? "left" : "right";
           ctx.textBaseline = "middle";
-          ctx.fillText(formatter(label, value, total), textX, textY);
+          ctx.fillText(texto, textX, item.yFinal);
         });
 
         ctx.restore();
@@ -1634,7 +1702,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 24, right: 92, bottom: 24, left: 92 } },
+          layout: { padding: { top: 24, right: 96, bottom: 24, left: 96 } },
           onClick: (_, elementos) => {
             if (!elementos.length || !metaPorFornecedor.length) return;
             const fornecedor = metaPorFornecedor[elementos[0].index]?.label;
@@ -1646,7 +1714,9 @@
           plugins: {
             legend: { display: false },
             outsideLabels: {
-              formatter: (label, value) => `${label} — ${percentual1(value)}`
+              formatter: (label, value) => `${label} — ${percentual1(value)}`,
+              minSpacing: 18,
+              maxTextWidth: 142
             },
             tooltip: {
               callbacks: {
@@ -1898,6 +1968,946 @@
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+    }
+
+    function escaparHtml(valor) {
+      return String(valor ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function valorHtml(valor, vazio = "-") {
+      const texto = String(valor ?? "").trim();
+      return texto ? escaparHtml(texto) : `<span class="muted">${escaparHtml(vazio)}</span>`;
+    }
+
+    function classeStatusReuniao(status) {
+      const chave = normalizarChave(status);
+
+      if (chave.includes("naoconcluido") || chave.includes("vencida") || chave.includes("aberta")) return "bad";
+      if (chave.includes("tratamento") || chave.includes("execucao") || chave.includes("andamento")) return "warn";
+      if (chave.includes("concluido") || chave.includes("removida")) return "ok";
+      return "info";
+    }
+
+    function badgeReuniao(texto) {
+      return `<span class="status ${classeStatusReuniao(texto)}">${valorHtml(texto)}</span>`;
+    }
+
+    function filtrosReuniaoTexto() {
+      const filtros = [
+        ["Semana", estado.semana],
+        ["Fornecedor", estado.fornecedor],
+        ["Local", estado.local],
+        ["Disciplina", estado.disciplina],
+        ["Causa", estado.causa],
+        ["Restrição", estado.statusRestricao],
+        ["Busca", estado.busca]
+      ].filter(([, valor]) => valor);
+
+      if (!filtros.length) return "Todos os dados carregados";
+      return filtros.map(([rotulo, valor]) => `${rotulo}: ${valor}`).join(" | ");
+    }
+
+    function formatarMediaTrabalhadores(valor) {
+      if (!Number.isFinite(valor)) return "0";
+      return valor.toFixed(1).replace(".", ",").replace(",0", "");
+    }
+
+    function calcularEfetivoMedioSemana(lista) {
+      const registros = (lista || []).filter(item => item.data);
+      const datas = [...new Set(registros.map(item => item.data))].sort(ordenarPorData);
+      const totalPorData = new Map();
+      const totalPorFornecedorData = new Map();
+
+      registros.forEach(item => {
+        const data = item.data;
+        const fornecedor = item.fornecedor || "Não informado";
+        const trabalhadores = numero(item.trabalhadores);
+
+        totalPorData.set(data, (totalPorData.get(data) || 0) + trabalhadores);
+
+        if (!totalPorFornecedorData.has(fornecedor)) {
+          totalPorFornecedorData.set(fornecedor, new Map());
+        }
+
+        const mapaFornecedor = totalPorFornecedorData.get(fornecedor);
+        mapaFornecedor.set(data, (mapaFornecedor.get(data) || 0) + trabalhadores);
+      });
+
+      if (!datas.length) {
+        return { mediaGeral: 0, mediaPorFornecedor: new Map(), dias: 0 };
+      }
+
+      const mediaGeral = datas.reduce((acc, data) => acc + (totalPorData.get(data) || 0), 0) / datas.length;
+      const mediaPorFornecedor = new Map();
+
+      totalPorFornecedorData.forEach((mapaData, fornecedor) => {
+        const totalFornecedor = datas.reduce((acc, data) => acc + (mapaData.get(data) || 0), 0);
+        mediaPorFornecedor.set(fornecedor, totalFornecedor / datas.length);
+      });
+
+      return { mediaGeral, mediaPorFornecedor, dias: datas.length };
+    }
+
+    function abrirVisaoEmpreiteirosLegado() {
+      const semanaSelecionada = perguntarSemanaReuniao();
+      if (!semanaSelecionada) return;
+
+      const semanaAnterior = estado.semana;
+      estado.semana = semanaSelecionada;
+
+      try {
+      const semanal = filtrar(dados.planoSemanal).filter(t => t.planejado);
+      const restricoes = filtrarRestricoes();
+      const restricoesAbertas = restricoes.filter(r => normalizarChave(r.status) !== "removida");
+      const efetivo = filtrarEfetivoDiario(dados.efetivo);
+      const efetivoSemana = calcularEfetivoMedioSemana(efetivo);
+      const pacotesPorId = new Map(dados.pacotes.map(p => [p.id, p]));
+
+      const concluidas = semanal.filter(t => t.concluido);
+      const naoConcluidas = semanal.filter(t => normalizarChave(t.status).includes("naoconcluido"));
+      const pesoPlanejado = somar(semanal, "peso");
+      const pesoConcluido = somar(concluidas, "peso");
+      const ppc = semanal.length ? (concluidas.length / semanal.length) * 100 : 0;
+      const ppcPonderado = pesoPlanejado ? (pesoConcluido / pesoPlanejado) * 100 : 0;
+      const efetivoMedio = efetivoSemana.mediaGeral;
+
+      const fornecedorRestricao = (restricao) => {
+        const pacote = pacotesPorId.get(restricao.pacoteId);
+        return pacote?.fornecedor || restricao.responsavel || "Não informado";
+      };
+
+      const efetivoPorFornecedor = efetivoSemana.mediaPorFornecedor;
+
+      const fornecedores = [...new Set([
+        ...semanal.map(item => item.fornecedor || "Não informado"),
+        ...restricoesAbertas.map(fornecedorRestricao),
+        ...efetivo.map(item => item.fornecedor || "Não informado")
+      ])].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+
+      const ordenarCompromissos = (a, b) => {
+        const statusA = a.concluido ? 1 : 0;
+        const statusB = b.concluido ? 1 : 0;
+        return statusA - statusB
+          || String(a.fornecedor || "").localeCompare(String(b.fornecedor || ""), "pt-BR")
+          || String(a.local || "").localeCompare(String(b.local || ""), "pt-BR")
+          || String(a.compromisso || "").localeCompare(String(b.compromisso || ""), "pt-BR");
+      };
+
+      const linhasResumo = fornecedores.length
+        ? fornecedores.map(fornecedor => {
+            const compromissos = semanal.filter(t => (t.fornecedor || "Não informado") === fornecedor);
+            const concluidosFornecedor = compromissos.filter(t => t.concluido);
+            const naoConcluidosFornecedor = compromissos.filter(t => normalizarChave(t.status).includes("naoconcluido"));
+            const restricoesFornecedor = restricoesAbertas.filter(r => fornecedorRestricao(r) === fornecedor);
+            const causas = agrupar(naoConcluidosFornecedor.filter(t => t.causa), "causa");
+            const ppcFornecedor = compromissos.length ? (concluidosFornecedor.length / compromissos.length) * 100 : 0;
+
+            return `
+              <tr>
+                <td><strong>${valorHtml(fornecedor)}</strong></td>
+                <td class="center">${compromissos.length}</td>
+                <td class="center">${concluidosFornecedor.length}</td>
+                <td class="center">${naoConcluidosFornecedor.length}</td>
+                <td class="center">${percentual(ppcFornecedor)}</td>
+                <td class="center">${restricoesFornecedor.length}</td>
+                <td class="center">${formatarMediaTrabalhadores(efetivoPorFornecedor.get(fornecedor) || 0)}</td>
+                <td>${valorHtml(causas[0]?.label)}</td>
+              </tr>
+            `;
+          }).join("")
+        : `<tr><td colspan="8" class="empty">Nenhum empreiteiro encontrado para os filtros atuais.</td></tr>`;
+
+      const linhasCompromissos = semanal.length
+        ? [...semanal].sort(ordenarCompromissos).map(item => `
+            <tr>
+              <td><strong>${valorHtml(item.fornecedor)}</strong></td>
+              <td>${valorHtml(item.local)}</td>
+              <td>${valorHtml(item.compromisso)}</td>
+              <td class="center">${percentual1(item.peso)}</td>
+              <td>${badgeReuniao(item.status || (item.concluido ? "Concluído" : "Pendente"))}</td>
+              <td>${valorHtml(item.causa)}</td>
+            </tr>
+          `).join("")
+        : `<tr><td colspan="6" class="empty">Nenhum compromisso semanal encontrado para os filtros atuais.</td></tr>`;
+
+      const linhasRestricoes = restricoesAbertas.length
+        ? [...restricoesAbertas]
+            .sort((a, b) => Number(restricaoVencida(b)) - Number(restricaoVencida(a)) || ordenarPorData(a.prazo, b.prazo))
+            .map(restricao => {
+              const pacote = pacotesPorId.get(restricao.pacoteId);
+              const status = restricaoVencida(restricao) ? "Vencida" : restricao.status;
+
+              return `
+                <tr>
+                  <td><strong>${valorHtml(fornecedorRestricao(restricao))}</strong></td>
+                  <td>${valorHtml(pacote?.local)}</td>
+                  <td>${valorHtml(pacote?.atividade || restricao.pacoteId)}</td>
+                  <td>${valorHtml(restricao.descricao)}</td>
+                  <td>${valorHtml(restricao.responsavel)}</td>
+                  <td class="nowrap">${valorHtml(formatarData(restricao.prazo))}</td>
+                  <td>${badgeReuniao(status)}</td>
+                </tr>
+              `;
+            }).join("")
+        : `<tr><td colspan="7" class="empty">Nenhuma restrição aberta encontrada para os filtros atuais.</td></tr>`;
+
+      const causas = agrupar(naoConcluidas.filter(t => t.causa), "causa");
+      const linhasCausas = causas.length
+        ? causas.map(causa => `
+            <tr>
+              <td><strong>${valorHtml(causa.label)}</strong></td>
+              <td class="center">${causa.valor}</td>
+            </tr>
+          `).join("")
+        : `<tr><td colspan="2" class="empty">Nenhuma causa de não conclusão registrada para os filtros atuais.</td></tr>`;
+
+      const geradoEm = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+      const html = `<!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Reunião PPC - ${valorHtml(semanaSelecionada)}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              font-family: "Segoe UI", Roboto, Arial, sans-serif;
+              background: #f4f6f8;
+              color: #111827;
+            }
+            .page {
+              width: min(1320px, 100%);
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .topbar {
+              display: flex;
+              justify-content: space-between;
+              gap: 16px;
+              align-items: flex-start;
+              margin-bottom: 16px;
+            }
+            h1 {
+              margin: 0;
+              font-size: clamp(1.5rem, 2.2vw, 2.35rem);
+              letter-spacing: 0;
+              color: #0f172a;
+            }
+            .meta {
+              margin-top: 6px;
+              color: #64748b;
+              font-size: 0.92rem;
+              line-height: 1.35;
+            }
+            .actions {
+              display: flex;
+              gap: 8px;
+              flex-wrap: wrap;
+              justify-content: flex-end;
+            }
+            button {
+              border: 0;
+              border-radius: 10px;
+              background: #2563eb;
+              color: #fff;
+              font-weight: 800;
+              padding: 10px 13px;
+              cursor: pointer;
+            }
+            .kpis {
+              display: grid;
+              grid-template-columns: repeat(6, minmax(140px, 1fr));
+              gap: 10px;
+              margin-bottom: 14px;
+            }
+            .kpi, .block {
+              background: #fff;
+              border: 1px solid #e5e7eb;
+              border-radius: 12px;
+              box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+            }
+            .kpi {
+              padding: 13px;
+              min-height: 98px;
+            }
+            .kpi-label {
+              color: #64748b;
+              font-size: 0.73rem;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+            }
+            .kpi-value {
+              margin-top: 7px;
+              color: #0f172a;
+              font-size: 1.8rem;
+              font-weight: 900;
+              line-height: 1;
+            }
+            .grid {
+              display: grid;
+              grid-template-columns: 1fr;
+              gap: 14px;
+            }
+            .block {
+              padding: 14px;
+            }
+            .block h2 {
+              margin: 0 0 10px;
+              font-size: 1rem;
+              color: #0f172a;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 0.88rem;
+            }
+            th, td {
+              padding: 9px 10px;
+              border-bottom: 1px solid #e5e7eb;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background: #f8fafc;
+              color: #334155;
+              font-size: 0.74rem;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+              white-space: nowrap;
+            }
+            tr:last-child td { border-bottom: 0; }
+            .center { text-align: center; }
+            .nowrap { white-space: nowrap; }
+            .muted { color: #64748b; }
+            .empty {
+              color: #64748b;
+              text-align: center;
+              padding: 16px;
+            }
+            .status {
+              display: inline-flex;
+              align-items: center;
+              border-radius: 999px;
+              padding: 4px 9px;
+              font-weight: 900;
+              font-size: 0.74rem;
+              white-space: nowrap;
+            }
+            .status.ok { background: #dcfce7; color: #166534; }
+            .status.warn { background: #fef3c7; color: #92400e; }
+            .status.bad { background: #fee2e2; color: #991b1b; }
+            .status.info { background: #dbeafe; color: #1e40af; }
+            @media (max-width: 980px) {
+              .topbar { display: block; }
+              .actions { justify-content: flex-start; margin-top: 12px; }
+              .kpis { grid-template-columns: repeat(2, 1fr); }
+              table { font-size: 0.8rem; }
+            }
+            @media print {
+              body { background: #fff; }
+              .page { width: 100%; padding: 0; }
+              .actions { display: none; }
+              .kpi, .block { box-shadow: none; break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <main class="page">
+            <section class="topbar">
+              <div>
+                <h1>Reunião PPC — ${valorHtml(semanaSelecionada)}</h1>
+                <div class="meta">
+                  <strong>Filtros:</strong> ${valorHtml(filtrosReuniaoTexto())}<br>
+                  <strong>Atualização da planilha:</strong> ${valorHtml(ultimaAtualizacaoPlanilha)} | <strong>Gerado em:</strong> ${valorHtml(geradoEm)}
+                </div>
+              </div>
+              <div class="actions">
+                <button onclick="window.print()">Imprimir / PDF</button>
+              </div>
+            </section>
+
+            <section class="kpis">
+              <article class="kpi">
+                <div class="kpi-label">PPC</div>
+                <div class="kpi-value">${percentual(ppc)}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">PPC ponderado</div>
+                <div class="kpi-value">${percentual(ppcPonderado)}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">Compromissos</div>
+                <div class="kpi-value">${semanal.length}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">Não concluídos</div>
+                <div class="kpi-value">${naoConcluidas.length}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">Restrições abertas</div>
+                <div class="kpi-value">${restricoesAbertas.length}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">Efetivo médio da semana</div>
+                <div class="kpi-value">${formatarMediaTrabalhadores(efetivoMedio)}</div>
+              </article>
+            </section>
+
+            <section class="grid">
+              <article class="block">
+                <h2>Resumo por empreiteiro</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Empreiteiro</th>
+                      <th class="center">Planejados</th>
+                      <th class="center">Concluídos</th>
+                      <th class="center">Não concluídos</th>
+                      <th class="center">PPC</th>
+                      <th class="center">Restrições</th>
+                      <th class="center">Efetivo médio</th>
+                      <th>Principal CNC</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasResumo}</tbody>
+                </table>
+              </article>
+
+              <article class="block">
+                <h2>Compromissos da semana</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Empreiteiro</th>
+                      <th>Local</th>
+                      <th>Compromisso</th>
+                      <th class="center">Peso</th>
+                      <th>Status</th>
+                      <th>CNC</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasCompromissos}</tbody>
+                </table>
+              </article>
+
+              <article class="block">
+                <h2>Restrições abertas</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Empreiteiro</th>
+                      <th>Local</th>
+                      <th>Pacote</th>
+                      <th>Restrição</th>
+                      <th>Responsável</th>
+                      <th>Prazo</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasRestricoes}</tbody>
+                </table>
+              </article>
+
+              <article class="block">
+                <h2>Causas de não conclusão</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Causa</th>
+                      <th class="center">Ocorrências</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasCausas}</tbody>
+                </table>
+              </article>
+            </section>
+          </main>
+        </body>
+        </html>`;
+
+      const novaAba = window.open("", "_blank");
+
+      if (!novaAba) {
+        alert("O navegador bloqueou a nova aba. Autorize pop-ups para abrir a visão de reunião PPC.");
+        return;
+      }
+
+      novaAba.document.open();
+      novaAba.document.write(html);
+      novaAba.document.close();
+      novaAba.focus();
+      } finally {
+        estado.semana = semanaAnterior;
+      }
+    }
+
+    function jsonSeguroParaScript(valor) {
+      return JSON.stringify(valor).replace(/</g, "\\u003c");
+    }
+
+    function criarPaginaReuniaoPpc(semanaSelecionada) {
+      const semanaAnterior = estado.semana;
+      estado.semana = semanaSelecionada;
+
+      try {
+        const semanal = filtrar(dados.planoSemanal).filter(t => t.planejado);
+        const restricoes = filtrarRestricoes();
+        const restricoesAbertas = restricoes.filter(r => normalizarChave(r.status) !== "removida");
+        const efetivo = filtrarEfetivoDiario(dados.efetivo);
+        const efetivoSemana = calcularEfetivoMedioSemana(efetivo);
+        const pacotesPorId = new Map(dados.pacotes.map(p => [p.id, p]));
+
+        const concluidas = semanal.filter(t => t.concluido);
+        const naoConcluidas = semanal.filter(t => normalizarChave(t.status).includes("naoconcluido"));
+        const pesoPlanejado = somar(semanal, "peso");
+        const pesoConcluido = somar(concluidas, "peso");
+        const ppc = semanal.length ? (concluidas.length / semanal.length) * 100 : 0;
+        const ppcPonderado = pesoPlanejado ? (pesoConcluido / pesoPlanejado) * 100 : 0;
+        const efetivoMedio = efetivoSemana.mediaGeral;
+
+        const fornecedorRestricao = (restricao) => {
+          const pacote = pacotesPorId.get(restricao.pacoteId);
+          return pacote?.fornecedor || restricao.responsavel || "Não informado";
+        };
+
+        const efetivoPorFornecedor = efetivoSemana.mediaPorFornecedor;
+
+        const fornecedores = [...new Set([
+          ...semanal.map(item => item.fornecedor || "Não informado"),
+          ...restricoesAbertas.map(fornecedorRestricao),
+          ...efetivo.map(item => item.fornecedor || "Não informado")
+        ])].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+
+        const ordenarCompromissos = (a, b) => {
+          const statusA = a.concluido ? 1 : 0;
+          const statusB = b.concluido ? 1 : 0;
+          return statusA - statusB
+            || String(a.fornecedor || "").localeCompare(String(b.fornecedor || ""), "pt-BR")
+            || String(a.local || "").localeCompare(String(b.local || ""), "pt-BR")
+            || String(a.compromisso || "").localeCompare(String(b.compromisso || ""), "pt-BR");
+        };
+
+        const linhasResumo = fornecedores.length
+          ? fornecedores.map(fornecedor => {
+              const compromissos = semanal.filter(t => (t.fornecedor || "Não informado") === fornecedor);
+              const concluidosFornecedor = compromissos.filter(t => t.concluido);
+              const naoConcluidosFornecedor = compromissos.filter(t => normalizarChave(t.status).includes("naoconcluido"));
+              const restricoesFornecedor = restricoesAbertas.filter(r => fornecedorRestricao(r) === fornecedor);
+              const causas = agrupar(naoConcluidosFornecedor.filter(t => t.causa), "causa");
+              const ppcFornecedor = compromissos.length ? (concluidosFornecedor.length / compromissos.length) * 100 : 0;
+
+              return `
+                <tr>
+                  <td><strong>${valorHtml(fornecedor)}</strong></td>
+                  <td class="center">${compromissos.length}</td>
+                  <td class="center">${concluidosFornecedor.length}</td>
+                  <td class="center">${naoConcluidosFornecedor.length}</td>
+                  <td class="center">${percentual(ppcFornecedor)}</td>
+                  <td class="center">${restricoesFornecedor.length}</td>
+                  <td class="center">${formatarMediaTrabalhadores(efetivoPorFornecedor.get(fornecedor) || 0)}</td>
+                  <td>${valorHtml(causas[0]?.label)}</td>
+                </tr>
+              `;
+            }).join("")
+          : `<tr><td colspan="8" class="empty">Nenhum empreiteiro encontrado para os filtros atuais.</td></tr>`;
+
+        const linhasCompromissos = semanal.length
+          ? [...semanal].sort(ordenarCompromissos).map(item => `
+              <tr>
+                <td><strong>${valorHtml(item.fornecedor)}</strong></td>
+                <td>${valorHtml(item.local)}</td>
+                <td>${valorHtml(item.compromisso)}</td>
+                <td class="center">${percentual1(item.peso)}</td>
+                <td>${badgeReuniao(item.status || (item.concluido ? "Concluído" : "Pendente"))}</td>
+                <td>${valorHtml(item.causa)}</td>
+              </tr>
+            `).join("")
+          : `<tr><td colspan="6" class="empty">Nenhum compromisso semanal encontrado para os filtros atuais.</td></tr>`;
+
+        const linhasRestricoes = restricoesAbertas.length
+          ? [...restricoesAbertas]
+              .sort((a, b) => Number(restricaoVencida(b)) - Number(restricaoVencida(a)) || ordenarPorData(a.prazo, b.prazo))
+              .map(restricao => {
+                const pacote = pacotesPorId.get(restricao.pacoteId);
+                const status = restricaoVencida(restricao) ? "Vencida" : restricao.status;
+
+                return `
+                  <tr>
+                    <td><strong>${valorHtml(fornecedorRestricao(restricao))}</strong></td>
+                    <td>${valorHtml(pacote?.local)}</td>
+                    <td>${valorHtml(pacote?.atividade || restricao.pacoteId)}</td>
+                    <td>${valorHtml(restricao.descricao)}</td>
+                    <td>${valorHtml(restricao.responsavel)}</td>
+                    <td class="nowrap">${valorHtml(formatarData(restricao.prazo))}</td>
+                    <td>${badgeReuniao(status)}</td>
+                  </tr>
+                `;
+              }).join("")
+          : `<tr><td colspan="7" class="empty">Nenhuma restrição aberta encontrada para os filtros atuais.</td></tr>`;
+
+        const causas = agrupar(naoConcluidas.filter(t => t.causa), "causa");
+        const linhasCausas = causas.length
+          ? causas.map(causa => `
+              <tr>
+                <td><strong>${valorHtml(causa.label)}</strong></td>
+                <td class="center">${causa.valor}</td>
+              </tr>
+            `).join("")
+          : `<tr><td colspan="2" class="empty">Nenhuma causa de não conclusão registrada para os filtros atuais.</td></tr>`;
+
+        const geradoEm = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
+        return {
+          tituloTexto: `Reunião PPC - ${semanaSelecionada}`,
+          tituloHtml: `Reunião PPC — ${valorHtml(semanaSelecionada)}`,
+          metaHtml: `<strong>Filtros:</strong> ${valorHtml(filtrosReuniaoTexto())}<br><strong>Atualização da planilha:</strong> ${valorHtml(ultimaAtualizacaoPlanilha)} | <strong>Gerado em:</strong> ${valorHtml(geradoEm)}`,
+          conteudoHtml: `
+            <section class="kpis">
+              <article class="kpi">
+                <div class="kpi-label">PPC</div>
+                <div class="kpi-value">${percentual(ppc)}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">PPC ponderado</div>
+                <div class="kpi-value">${percentual(ppcPonderado)}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">Compromissos</div>
+                <div class="kpi-value">${semanal.length}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">Não concluídos</div>
+                <div class="kpi-value">${naoConcluidas.length}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">Restrições abertas</div>
+                <div class="kpi-value">${restricoesAbertas.length}</div>
+              </article>
+              <article class="kpi">
+                <div class="kpi-label">Efetivo médio da semana</div>
+                <div class="kpi-value">${formatarMediaTrabalhadores(efetivoMedio)}</div>
+              </article>
+            </section>
+
+            <section class="grid">
+              <article class="block">
+                <h2>Resumo por empreiteiro</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Empreiteiro</th>
+                      <th class="center">Planejados</th>
+                      <th class="center">Concluídos</th>
+                      <th class="center">Não concluídos</th>
+                      <th class="center">PPC</th>
+                      <th class="center">Restrições</th>
+                      <th class="center">Efetivo médio</th>
+                      <th>Principal CNC</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasResumo}</tbody>
+                </table>
+              </article>
+
+              <article class="block">
+                <h2>Compromissos da semana</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Empreiteiro</th>
+                      <th>Local</th>
+                      <th>Compromisso</th>
+                      <th class="center">Peso</th>
+                      <th>Status</th>
+                      <th>CNC</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasCompromissos}</tbody>
+                </table>
+              </article>
+
+              <article class="block">
+                <h2>Restrições abertas</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Empreiteiro</th>
+                      <th>Local</th>
+                      <th>Pacote</th>
+                      <th>Restrição</th>
+                      <th>Responsável</th>
+                      <th>Prazo</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasRestricoes}</tbody>
+                </table>
+              </article>
+
+              <article class="block">
+                <h2>Causas de não conclusão</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Causa</th>
+                      <th class="center">Ocorrências</th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasCausas}</tbody>
+                </table>
+              </article>
+            </section>
+          `
+        };
+      } finally {
+        estado.semana = semanaAnterior;
+      }
+    }
+
+    function abrirVisaoEmpreiteiros() {
+      const semanas = valoresUnicos([dados.pacotes, dados.planoSemanal, dados.efetivo], "semana");
+
+      if (!semanas.length) {
+        alert("Nenhuma semana encontrada nos dados carregados.");
+        return;
+      }
+
+      const semanaInicial = estado.semana && semanas.includes(estado.semana) ? estado.semana : semanas[0];
+      const paginasPorSemana = Object.fromEntries(semanas.map(semana => [semana, criarPaginaReuniaoPpc(semana)]));
+      const paginaInicial = paginasPorSemana[semanaInicial];
+      const opcoesSemana = semanas.map(semana => `<option value="${valorHtml(semana)}" ${semana === semanaInicial ? "selected" : ""}>${valorHtml(semana)}</option>`).join("");
+
+      const html = `<!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>${valorHtml(paginaInicial.tituloTexto)}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              margin: 0;
+              font-family: "Segoe UI", Roboto, Arial, sans-serif;
+              background: #f4f6f8;
+              color: #111827;
+            }
+            .page {
+              width: min(1320px, 100%);
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .topbar {
+              display: flex;
+              justify-content: space-between;
+              gap: 16px;
+              align-items: flex-start;
+              margin-bottom: 16px;
+            }
+            h1 {
+              margin: 0;
+              font-size: clamp(1.5rem, 2.2vw, 2.35rem);
+              letter-spacing: 0;
+              color: #0f172a;
+            }
+            .meta {
+              margin-top: 6px;
+              color: #64748b;
+              font-size: 0.92rem;
+              line-height: 1.35;
+            }
+            .actions {
+              display: flex;
+              gap: 8px;
+              flex-wrap: wrap;
+              justify-content: flex-end;
+              align-items: end;
+            }
+            .field {
+              display: grid;
+              gap: 5px;
+            }
+            label {
+              color: #64748b;
+              font-size: 0.72rem;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+            }
+            select {
+              min-width: 180px;
+              border: 1px solid #cbd5e1;
+              border-radius: 10px;
+              padding: 9px 10px;
+              background: #fff;
+              color: #0f172a;
+              font: inherit;
+              font-weight: 700;
+            }
+            button {
+              border: 0;
+              border-radius: 10px;
+              background: #2563eb;
+              color: #fff;
+              font-weight: 800;
+              padding: 10px 13px;
+              cursor: pointer;
+            }
+            .kpis {
+              display: grid;
+              grid-template-columns: repeat(6, minmax(140px, 1fr));
+              gap: 10px;
+              margin-bottom: 14px;
+            }
+            .kpi, .block {
+              background: #fff;
+              border: 1px solid #e5e7eb;
+              border-radius: 12px;
+              box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+            }
+            .kpi {
+              padding: 13px;
+              min-height: 98px;
+            }
+            .kpi-label {
+              color: #64748b;
+              font-size: 0.73rem;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+            }
+            .kpi-value {
+              margin-top: 7px;
+              color: #0f172a;
+              font-size: 1.8rem;
+              font-weight: 900;
+              line-height: 1;
+            }
+            .grid {
+              display: grid;
+              grid-template-columns: 1fr;
+              gap: 14px;
+            }
+            .block {
+              padding: 14px;
+            }
+            .block h2 {
+              margin: 0 0 10px;
+              font-size: 1rem;
+              color: #0f172a;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 0.88rem;
+            }
+            th, td {
+              padding: 9px 10px;
+              border-bottom: 1px solid #e5e7eb;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background: #f8fafc;
+              color: #334155;
+              font-size: 0.74rem;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+              white-space: nowrap;
+            }
+            tr:last-child td { border-bottom: 0; }
+            .center { text-align: center; }
+            .nowrap { white-space: nowrap; }
+            .muted { color: #64748b; }
+            .empty {
+              color: #64748b;
+              text-align: center;
+              padding: 16px;
+            }
+            .status {
+              display: inline-flex;
+              align-items: center;
+              border-radius: 999px;
+              padding: 4px 9px;
+              font-weight: 900;
+              font-size: 0.74rem;
+              white-space: nowrap;
+            }
+            .status.ok { background: #dcfce7; color: #166534; }
+            .status.warn { background: #fef3c7; color: #92400e; }
+            .status.bad { background: #fee2e2; color: #991b1b; }
+            .status.info { background: #dbeafe; color: #1e40af; }
+            @media (max-width: 980px) {
+              .topbar { display: block; }
+              .actions { justify-content: flex-start; margin-top: 12px; }
+              .kpis { grid-template-columns: repeat(2, 1fr); }
+              table { font-size: 0.8rem; }
+            }
+            @media print {
+              body { background: #fff; }
+              .page { width: 100%; padding: 0; }
+              .actions { display: none; }
+              .kpi, .block { box-shadow: none; break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <main class="page">
+            <section class="topbar">
+              <div>
+                <h1 id="titulo-reuniao">${paginaInicial.tituloHtml}</h1>
+                <div id="meta-reuniao" class="meta">${paginaInicial.metaHtml}</div>
+              </div>
+              <div class="actions">
+                <div class="field">
+                  <label for="semana-reuniao">Semana</label>
+                  <select id="semana-reuniao">${opcoesSemana}</select>
+                </div>
+                <button onclick="window.print()">Imprimir / PDF</button>
+              </div>
+            </section>
+            <div id="conteudo-reuniao">${paginaInicial.conteudoHtml}</div>
+          </main>
+          <script>
+            const paginasPorSemana = ${jsonSeguroParaScript(paginasPorSemana)};
+            const seletorSemana = document.getElementById("semana-reuniao");
+            const titulo = document.getElementById("titulo-reuniao");
+            const meta = document.getElementById("meta-reuniao");
+            const conteudo = document.getElementById("conteudo-reuniao");
+
+            function renderizarSemana() {
+              const pagina = paginasPorSemana[seletorSemana.value];
+              if (!pagina) return;
+
+              document.title = pagina.tituloTexto;
+              titulo.innerHTML = pagina.tituloHtml;
+              meta.innerHTML = pagina.metaHtml;
+              conteudo.innerHTML = pagina.conteudoHtml;
+            }
+
+            seletorSemana.addEventListener("change", renderizarSemana);
+          <\/script>
+        </body>
+        </html>`;
+
+      const novaAba = window.open("", "_blank");
+
+      if (!novaAba) {
+        alert("O navegador bloqueou a nova aba. Autorize pop-ups para abrir a visão de reunião PPC.");
+        return;
+      }
+
+      novaAba.document.open();
+      novaAba.document.write(html);
+      novaAba.document.close();
+      novaAba.focus();
     }
 
     // =========================================================
@@ -2313,6 +3323,7 @@
       });
 
       qs("#btn-exportar").addEventListener("click", exportarVisaoCSV);
+      qs("#btn-visao-empreiteiros").addEventListener("click", abrirVisaoEmpreiteiros);
 
       qs("#btn-atualizar").addEventListener("click", async () => {
         const botao = qs("#btn-atualizar");
