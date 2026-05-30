@@ -39,15 +39,22 @@
 
     .header {
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 16px;
+      grid-template-columns: 1fr;
+      gap: 12px;
       align-items: center;
+      justify-items: center;
+      text-align: center;
       margin-bottom: 14px;
+    }
+
+    .header-title {
+      width: min(980px, 100%);
     }
 
     .header-title h1 {
       margin: 0;
-      font-size: clamp(1.35rem, 2vw, 2rem);
+      font-size: clamp(1.45rem, 2.4vw, 2.25rem);
+      line-height: 1.12;
       color: #0f172a;
     }
 
@@ -61,8 +68,9 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      justify-content: flex-end;
+      justify-content: center;
       align-items: center;
+      width: min(1180px, 100%);
     }
 
     .pill {
@@ -361,6 +369,37 @@
 
     .chart-box.small { height: 230px; }
 
+    .link-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .link-metric {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      background: #f8fafc;
+      min-width: 0;
+    }
+
+    .link-metric strong {
+      display: block;
+      color: #0f172a;
+      font-size: 1.05rem;
+      line-height: 1.15;
+    }
+
+    .link-metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
     .kanban {
       display: grid;
       grid-template-columns: repeat(5, minmax(165px, 1fr));
@@ -515,10 +554,10 @@
 
     @media (max-width: 720px) {
       .app { padding: 10px; }
-      .header { grid-template-columns: 1fr; }
-      .header-actions { justify-content: flex-start; }
+      .header-actions { justify-content: center; }
       .filters { grid-template-columns: 1fr; }
       .kpi-grid { grid-template-columns: 1fr; }
+      .link-kpis { grid-template-columns: 1fr 1fr; }
       .card { padding: 11px; }
       table { font-size: 0.78rem; }
       th, td { padding: 8px; }
@@ -546,6 +585,7 @@
         <button class="button secondary" id="btn-atualizar">Atualizar agora</button>
         <button class="button secondary" id="btn-limpar">Limpar filtros</button>
         <button class="button" id="btn-exportar">Exportar visão CSV</button>
+        <button class="button" id="btn-visao-link">Visão lookahead</button>
         <button class="button" id="btn-visao-empreiteiros">Visão reunião PPC</button>
       </div>
     </section>
@@ -593,7 +633,7 @@
       <article class="kpi-card">
         <div class="kpi-label">Meta do período selecionado</div>
         <div class="kpi-value" id="kpi-meta-mes">0%</div>
-        <div class="kpi-help">Soma dos pesos dos pacotes nos filtros ativos.</div>
+        <div class="kpi-help">Peso do Plano_Mensal nos filtros ativos.</div>
       </article>
       <article class="kpi-card green">
         <div class="kpi-label">Pacotes aptos no período selecionado</div>
@@ -677,7 +717,7 @@
         <div class="card-header">
           <div>
             <h2 class="card-title">4. Responsabilidade da meta</h2>
-            <p class="card-subtitle">Distribuição do peso planejado por fornecedor.</p>
+            <p class="card-subtitle">Distribuição da meta do Plano_Mensal nos filtros ativos por fornecedor.</p>
           </div>
         </div>
         <div class="chart-box"><canvas id="chart-meta"></canvas></div>
@@ -688,7 +728,44 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">5. Controle de restrições</h2>
+            <h2 class="card-title">5. Lookahead</h2>
+            <p class="card-subtitle">Tarefas do Project que começam no mês atual e no mês seguinte.</p>
+          </div>
+        </div>
+        <div id="resumo-vinculo" class="link-kpis"></div>
+        <div class="chart-box small"><canvas id="chart-vinculo"></canvas></div>
+      </article>
+
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">6. Restrições do mês seguinte</h2>
+            <p class="card-subtitle">Itens que precisam de análise antes de entrarem no curto prazo.</p>
+          </div>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Janela</th>
+                <th>ID</th>
+                <th>Atividade</th>
+                <th class="center">Peso ref.</th>
+                <th class="center">Restr.</th>
+                <th>Preparação</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-vinculo"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid-2">
+      <article class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">7. Controle de restrições</h2>
             <p class="card-subtitle">Base para remoção proativa de impedimentos antes do plano semanal.</p>
           </div>
         </div>
@@ -714,7 +791,7 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">10. Status das restrições</h2>
+            <h2 class="card-title">8. Status das restrições</h2>
             <p class="card-subtitle">Aberta, em tratamento, removida ou vencida.</p>
           </div>
         </div>
@@ -726,7 +803,7 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">7. Curto prazo — Plano semanal e PPC</h2>
+            <h2 class="card-title">9. Curto prazo — Plano semanal e PPC</h2>
             <p class="card-subtitle">Compromissos semanais assumidos pelos últimos planejadores.</p>
           </div>
         </div>
@@ -759,7 +836,7 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">6. Causas de não conclusão — CNC</h2>
+            <h2 class="card-title">10. Causas de não conclusão — CNC</h2>
             <p class="card-subtitle">Diagnóstico para reduzir variabilidade, perdas e interrupções de fluxo.</p>
           </div>
         </div>
@@ -771,7 +848,7 @@
       <article class="card kanban-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">8. Kanban do fluxo semanal</h2>
+            <h2 class="card-title">11. Kanban do fluxo semanal</h2>
             <p class="card-subtitle">Visualização rápida do estado dos pacotes de trabalho.</p>
           </div>
         </div>
@@ -781,7 +858,7 @@
       <article class="card efetivo-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">9. Efetivo diário por empreiteiro</h2>
+            <h2 class="card-title">12. Efetivo diário por empreiteiro</h2>
             <p class="card-subtitle">Quantidade de trabalhadores por fornecedor ao longo da semana.</p>
           </div>
         </div>
@@ -825,7 +902,7 @@
 
       // Cole aqui a URL do Web App do Apps Script após publicar o script anexo.
       // Exemplo: https://script.google.com/macros/s/AKfycb.../exec
-      appsScriptWebAppUrl: "https://script.google.com/macros/s/AKfycbzOeoZ_gX6c3uNmlu_L9HOn6elZCu18p17SbJccn3aBu-1clcCgQcF9eszksbvoBA_N/exec",
+      appsScriptWebAppUrl: "https://script.google.com/macros/s/AKfycbxR2QOl1C94RTyj0zIr5GLHQ9jBLKu1Tp1R3bm1JiY5bw42uj2EwULarJvStBgCxp4q2A/exec",
 
       // Alternativa sem Apps Script: cole somente o ID da planilha editável do Google Sheets.
       // O ID fica na URL: https://docs.google.com/spreadsheets/d/ESTE_TEXTO_AQUI/edit
@@ -837,7 +914,9 @@
         planoSemanal: "Plano_Semanal",
         efetivo: "Efetivo",
         diarioObra: "Diario_Obra",
-        atualizacao: "Atualizacao"
+        atualizacao: "Atualizacao",
+        project: "Project",
+        vinculoMedioLongo: "Lookahead_Medio_Prazo"
       },
 
       // Fallback: links publicados em CSV. Use todos do MESMO arquivo publicado.
@@ -849,7 +928,9 @@
         planoSemanal: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=334541404&single=true&output=csv",
         efetivo: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=1489048044&single=true&output=csv",
         diarioObra: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=2055599827&single=true&output=csv",
-        atualizacao: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=1820235717&single=true&output=csv" // preencher com a aba Atualizacao do mesmo arquivo, se usar CSV publicado
+        atualizacao: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTcyT66_g5VBo_NHJMS9A4cplJWspRIgqlQNx5aJcoeG6PkRUCBqMSDdJ-pW_kvSsr-5EJwGPJlOE97/pub?gid=1820235717&single=true&output=csv", // preencher com a aba Atualizacao do mesmo arquivo, se usar CSV publicado
+        project: "",
+        vinculoMedioLongo: ""
       }
     };
 
@@ -862,6 +943,8 @@
       restricoes: [],
       planoSemanal: [],
       diarioObra: [],
+      project: [],
+      vinculoMedioLongo: [],
       historicoPpc: []
     };
 
@@ -880,6 +963,11 @@
       causa: "",
       statusRestricao: ""
     };
+
+    const JANELAS_LOOKAHEAD = [
+      { id: "Mês 1", inicio: "2026-04-30", fim: "2026-05-31", periodo: "30/04/2026 a 31/05/2026" },
+      { id: "Mês 1+1", inicio: "2026-06-01", fim: "2026-06-30", periodo: "01/06/2026 a 30/06/2026" }
+    ];
 
     const qs = (selector) => document.querySelector(selector);
 
@@ -1053,6 +1141,138 @@
       });
     }
 
+    function pacoteIdProject(valor) {
+      const texto = String(valor || "").trim();
+      if (!texto) return "";
+      return texto.toUpperCase().startsWith("MSP-") ? texto : `MSP-${texto}`;
+    }
+
+    function pesoReferenciaProject(item) {
+      return numero(item.peso);
+    }
+
+    function janelaLookahead(dataValor) {
+      const data = valorData(dataValor);
+      if (!data) return null;
+      return JANELAS_LOOKAHEAD.find(janela => data >= valorData(janela.inicio) && data <= valorData(janela.fim)) || null;
+    }
+
+    function statusPreparacaoLookahead(item) {
+      if (numero(item.restricoesAbertas) > 0) {
+        return item.janelaLookahead === "Mês 1"
+          ? "ALERTA CRÍTICO - restrição aberta na meta do mês"
+          : "ALERTA - tratar restrições";
+      }
+      if (numero(item.compromissosPlanejados) > 0) return "Entrou no curto prazo";
+      if (item.janelaLookahead === "Mês 1+1" && normalizarChave(item.existePlanoMensal) !== "sim" && numero(item.restricoesAbertas) === 0 && numero(item.restricoesRemovidas) === 0) return "Antecipar análise";
+      if (normalizarChave(item.existePlanoMensal) !== "sim") return "Falta no médio prazo";
+      if (normalizarChave(item.aptoMedioPrazo) === "sim") return "Preparado";
+      return "Make-ready pendente";
+    }
+
+    function ultimoStatusSemanal(linhas) {
+      if (!linhas.length) return "";
+      return [...linhas]
+        .sort((a, b) => String(a.semana || "").localeCompare(String(b.semana || ""), "pt-BR") || numero(a.id) - numero(b.id))
+        .at(-1)?.status || "";
+    }
+
+    function vinculoTipo(status) {
+      const chave = normalizarChave(status);
+      if (chave.includes("alertacritico") || chave.includes("metadomes")) return "red";
+      if (chave.includes("alerta")) return "yellow";
+      if (chave.includes("preparado") || chave.includes("entrounocurtoprazo")) return "green";
+      if (chave.includes("tratar") || chave.includes("pendente")) return "yellow";
+      if (chave.includes("antecipar")) return "purple";
+      return "red";
+    }
+
+    function montarVinculosMedioLongo() {
+      if (dados.vinculoMedioLongo.length) return dados.vinculoMedioLongo;
+
+      const projectById = new Map(dados.project.map(item => [item.pacoteId, item]));
+      const pacotesById = new Map(dados.pacotes.map(item => [item.id, item]));
+
+      function montarItem(pacoteId, project, pacote, janelaPadrao) {
+        const pacoteRef = pacote || pacotesById.get(pacoteId);
+        const semanais = dados.planoSemanal.filter(item => item.pacoteId === pacoteId || normalizarChave(item.atividade || item.compromisso) === normalizarChave(project?.atividade || pacoteRef?.atividade));
+        const planejados = semanais.filter(item => item.planejado);
+        const concluidos = planejados.filter(item => item.concluido);
+        const restricoes = dados.restricoes.filter(item => item.pacoteId === pacoteId);
+        const restricoesAbertas = restricoes.filter(item => normalizarChave(item.status) !== "removida").length;
+        const restricoesRemovidas = restricoes.filter(item => normalizarChave(item.status) === "removida").length;
+
+        const item = {
+          janelaLookahead: project?.janelaLookahead || janelaPadrao?.id || "",
+          periodo: project?.periodo || janelaPadrao?.periodo || "",
+          projectId: project?.projectId || "",
+          pacoteId,
+          atividade: project?.atividade || pacoteRef?.atividade || "",
+          semana: pacoteRef?.semana || project?.janelaLookahead || "",
+          local: pacoteRef?.local || project?.local || "",
+          fornecedor: pacoteRef?.fornecedor || project?.fornecedor || "",
+          disciplina: pacoteRef?.disciplina || project?.disciplina || "",
+          inicioProject: project?.inicio || pacoteRef?.inicio || "",
+          fimProject: project?.fim || pacoteRef?.fim || "",
+          pesoReferencia: project?.pesoReferencia || pacoteRef?.peso || 0,
+          pesoMedioPrazo: pacoteRef?.peso || 0,
+          existePlanoMensal: pacoteRef ? "Sim" : "Não",
+          statusLPS: pacoteRef?.statusLPS || "",
+          aptoMedioPrazo: pacoteRef && pacoteApto(pacoteRef) ? "Sim" : "Não",
+          compromissosPlanejados: planejados.length,
+          compromissosConcluidos: concluidos.length,
+          ultimoStatusSemanal: ultimoStatusSemanal(planejados),
+          causasNaoConclusao: [...new Set(planejados.map(item => item.causa).filter(Boolean))].join(" | "),
+          restricoesAbertas,
+          restricoesRemovidas
+        };
+
+        item.statusPreparacao = statusPreparacaoLookahead(item);
+        item.acaoSugerida = numero(item.restricoesAbertas) > 0
+          ? item.janelaLookahead === "Mês 1"
+            ? "Remover restrição imediatamente: impacta a meta do mês"
+            : "Remover restrições antes de entrar no curto prazo"
+          : item.statusPreparacao === "Antecipar análise"
+            ? "Cadastrar/analisar restrições do próximo mês"
+            : "Acompanhar fluxo";
+
+        return item;
+      }
+
+      const mesAtual = dados.pacotes.map(pacote => montarItem(pacote.id, projectById.get(pacote.id), pacote, JANELAS_LOOKAHEAD[0]));
+      const mesSeguinte = dados.project
+        .filter(project => project.janelaLookahead === "Mês 1+1")
+        .map(project => montarItem(project.pacoteId, project, pacotesById.get(project.pacoteId), JANELAS_LOOKAHEAD[1]));
+
+      return [...mesAtual, ...mesSeguinte];
+    }
+
+    function filtrarVinculosMedioLongo() {
+      return montarVinculosMedioLongo().filter(item => {
+        const semanaOK = !estado.semana || item.semana === estado.semana || item.janelaLookahead === "Mês 1+1";
+        const fornecedorOK = !estado.fornecedor || item.fornecedor === estado.fornecedor;
+        const localOK = !estado.local || item.local === estado.local;
+        const disciplinaOK = !estado.disciplina || item.disciplina === estado.disciplina;
+        return semanaOK && fornecedorOK && localOK && disciplinaOK && passaBusca(item);
+      });
+    }
+
+    function resumoVinculos(vinculos) {
+      const mes1 = vinculos.filter(item => item.janelaLookahead === "Mês 1");
+      const mesProximo = vinculos.filter(item => item.janelaLookahead === "Mês 1+1");
+      const semAnalise = mesProximo.filter(item => numero(item.restricoesAbertas) === 0 && numero(item.restricoesRemovidas) === 0);
+
+      return {
+        metaMes1: somar(mes1, "pesoReferencia"),
+        metaMesProximo: somar(mesProximo, "pesoReferencia"),
+        itensMes1: mes1.length,
+        itensMesProximo: mesProximo.length,
+        restricoesMesProximo: mesProximo.reduce((acc, item) => acc + numero(item.restricoesAbertas), 0),
+        semAnaliseMesProximo: semAnalise.length,
+        preparadosMesProximo: mesProximo.filter(item => normalizarChave(item.statusPreparacao).includes("preparado")).length
+      };
+    }
+
     function valoresUnicos(listas, campo) {
       const set = new Set();
       listas.flat().forEach(item => {
@@ -1183,6 +1403,8 @@
       const pacotes = filtrar(dados.pacotes);
       const semanal = filtrar(dados.planoSemanal).filter(t => t.planejado);
       const restricoes = filtrarRestricoes();
+      const vinculos = filtrarVinculosMedioLongo();
+      const resumoVinculo = resumoVinculos(vinculos);
       const restricoesAbertas = restricoes.filter(r => r.status !== "Removida");
       const restricoesVencidas = restricoes.filter(restricaoVencida);
       const efetivo = efetivoUltimoDia(dados.efetivo);
@@ -1333,6 +1555,61 @@
           criarCelula(percentual1(t.peso), "center nowrap"),
           criar("td", {}, [criarBadge(t.status, statusTipo)]),
           criarCelula(t.causa || "-", t.causa ? "" : "muted")
+        ]));
+      });
+    }
+
+    function renderVinculoMedioLongo() {
+      const container = qs("#resumo-vinculo");
+      const tbody = qs("#tabela-vinculo");
+      if (!container || !tbody) return;
+
+      const vinculos = filtrarVinculosMedioLongo();
+      const resumo = resumoVinculos(vinculos);
+      limparElemento(container);
+      limparElemento(tbody);
+
+      [
+        ["Meta Mês 1", percentual1(resumo.metaMes1)],
+        ["Meta Mês +1", percentual1(resumo.metaMesProximo)],
+        ["Itens Mês 1", resumo.itensMes1],
+        ["Itens Mês +1", resumo.itensMesProximo],
+        ["Sem análise", resumo.semAnaliseMesProximo]
+      ].forEach(([rotulo, valor]) => {
+        container.appendChild(criar("div", { className: "link-metric" }, [
+          criar("span", { text: rotulo }),
+          criar("strong", { text: valor })
+        ]));
+      });
+
+      const pendencias = vinculos
+        .filter(item =>
+          item.janelaLookahead === "Mês 1+1" &&
+          (normalizarChave(item.statusPreparacao).includes("antecipar") ||
+            normalizarChave(item.statusPreparacao).includes("tratar") ||
+            numero(item.restricoesAbertas) > 0)
+        )
+        .sort((a, b) =>
+          numero(b.restricoesAbertas) - numero(a.restricoesAbertas) ||
+          String(a.inicioProject || "").localeCompare(String(b.inicioProject || ""), "pt-BR") ||
+          String(a.atividade || "").localeCompare(String(b.atividade || ""), "pt-BR")
+        )
+        .slice(0, 60);
+
+      if (!pendencias.length) {
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhuma pendência de lookahead encontrada.", className: "empty", colspan: "6" })]));
+        return;
+      }
+
+      pendencias.forEach(item => {
+        const statusTexto = item.statusPreparacao || "Antecipar análise";
+        tbody.appendChild(criar("tr", {}, [
+          criarCelula(item.janelaLookahead || "-", "nowrap"),
+          criarCelula(item.pacoteId || item.projectId),
+          criarCelula(item.atividade),
+          criarCelula(percentual1(numero(item.pesoReferencia)), "center nowrap"),
+          criarCelula(numero(item.restricoesAbertas), "center"),
+          criar("td", {}, [criarBadge(statusTexto, vinculoTipo(statusTexto))])
         ]));
       });
     }
@@ -1686,6 +1963,8 @@
       const pacotes = filtrar(dados.pacotes);
       const semanal = filtrar(dados.planoSemanal);
       const restricoes = filtrarRestricoes();
+      const vinculos = filtrarVinculosMedioLongo();
+      const resumoVinculo = resumoVinculos(vinculos);
 
       const metaPorFornecedor = agruparSoma(pacotes, "fornecedor", "peso");
       criarGrafico("chart-meta", {
@@ -1726,6 +2005,40 @@
             }
           },
           cutout: "56%"
+        }
+      });
+
+      criarGrafico("chart-vinculo", {
+        type: "bar",
+        data: {
+          labels: ["Meta Mês 1", "Meta Mês +1"],
+          datasets: [{
+            label: "Peso",
+            data: [
+              resumoVinculo.metaMes1,
+              resumoVinculo.metaMesProximo
+            ],
+            borderWidth: 1,
+            backgroundColor: ["#2563eb", "#7c3aed"]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: contexto => percentual1(contexto.parsed.y)
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { callback: value => percentual1(value) }
+            }
+          }
         }
       });
 
@@ -1902,6 +2215,7 @@
       renderPacotes();
       renderRestricoes();
       renderSemanal();
+      renderVinculoMedioLongo();
       renderEfetivo();
       renderKanban();
       renderGraficos();
@@ -1988,6 +2302,12 @@
     function classeStatusReuniao(status) {
       const chave = normalizarChave(status);
 
+      if (chave.includes("alertacritico") || chave.includes("metadomes")) return "bad";
+      if (chave.includes("alerta")) return "warn";
+      if (chave.includes("preparado") || chave.includes("entrounocurtoprazo")) return "ok";
+      if (chave.includes("tratar") || chave.includes("pendente")) return "warn";
+      if (chave.includes("antecipar")) return "info";
+      if (chave.includes("faltanomedio")) return "bad";
       if (chave.includes("naoconcluido") || chave.includes("vencida") || chave.includes("aberta")) return "bad";
       if (chave.includes("tratamento") || chave.includes("execucao") || chave.includes("andamento")) return "warn";
       if (chave.includes("concluido") || chave.includes("removida")) return "ok";
@@ -2910,6 +3230,196 @@
       novaAba.focus();
     }
 
+    function abrirVisaoMedioLongo() {
+      const vinculos = filtrarVinculosMedioLongo();
+
+      if (!vinculos.length) {
+        alert("Nenhuma tarefa de lookahead encontrada nos dados carregados.");
+        return;
+      }
+
+      const geradoEm = new Date().toLocaleString("pt-BR");
+
+      function linhasLookahead(lista) {
+        const linhas = [...lista]
+          .sort((a, b) =>
+          String(a.janelaLookahead || "").localeCompare(String(b.janelaLookahead || ""), "pt-BR") ||
+          ordenarPorData(a.inicioProject, b.inicioProject) ||
+          String(a.local || "").localeCompare(String(b.local || ""), "pt-BR") ||
+          String(a.atividade || "").localeCompare(String(b.atividade || ""), "pt-BR")
+          )
+          .map(item => `
+            <tr>
+              <td class="nowrap">${valorHtml(item.janelaLookahead)}</td>
+              <td class="nowrap">${valorHtml(item.pacoteId || item.projectId)}</td>
+              <td>${valorHtml(item.atividade)}</td>
+              <td>${valorHtml(item.fornecedor)}</td>
+              <td class="center nowrap">${percentual1(numero(item.pesoReferencia))}</td>
+              <td class="center">${numero(item.restricoesAbertas)}</td>
+              <td class="center">${numero(item.compromissosPlanejados)}</td>
+              <td>${badgeReuniao(item.statusPreparacao)}</td>
+            </tr>
+          `).join("");
+
+        return linhas || `<tr><td class="empty" colspan="8">Nenhuma tarefa encontrada para esta janela.</td></tr>`;
+      }
+
+      function criarPaginaLookahead(janela) {
+        const lista = janela === "Todos" ? vinculos : vinculos.filter(item => item.janelaLookahead === janela);
+        const resumo = resumoVinculos(lista);
+        return {
+          resumo: {
+            metaMes1: percentual1(resumo.metaMes1),
+            metaMesProximo: percentual1(resumo.metaMesProximo),
+            itensMes1: resumo.itensMes1,
+            itensMesProximo: resumo.itensMesProximo,
+            restricoesMesProximo: resumo.restricoesMesProximo,
+            semAnaliseMesProximo: resumo.semAnaliseMesProximo
+          },
+          linhas: linhasLookahead(lista)
+        };
+      }
+
+      const janelasLookahead = ["Todos", "Mês 1", "Mês 1+1"];
+      const paginasPorJanela = Object.fromEntries(janelasLookahead.map(janela => [janela, criarPaginaLookahead(janela)]));
+      const paginaInicial = paginasPorJanela.Todos;
+      const rotulosJanela = { "Todos": "Todos", "Mês 1": "Mês 1", "Mês 1+1": "Mês +1" };
+      const opcoesJanela = janelasLookahead.map(janela => `<option value="${valorHtml(janela)}">${valorHtml(rotulosJanela[janela] || janela)}</option>`).join("");
+
+      const html = `<!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Visão lookahead médio prazo</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background: #f4f6f8; color: #111827; }
+            .page { width: min(1380px, 100%); margin: 0 auto; padding: 20px; }
+            .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+            h1 { margin: 0; color: #0f172a; font-size: clamp(1.5rem, 2.2vw, 2.35rem); letter-spacing: 0; }
+            .meta { margin-top: 6px; color: #64748b; font-size: 0.92rem; line-height: 1.35; }
+            .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: end; }
+            .field { display: grid; gap: 5px; }
+            label { color: #64748b; font-size: 0.72rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
+            select { min-width: 170px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 9px 10px; background: #fff; color: #0f172a; font: inherit; font-weight: 700; }
+            button { border: 0; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 800; padding: 10px 13px; cursor: pointer; }
+            .kpis { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+            .kpi, .block { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06); }
+            .kpi { padding: 13px; min-height: 98px; }
+            .kpi-label { color: #64748b; font-size: 0.73rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
+            .kpi-value { margin-top: 7px; color: #0f172a; font-size: 1.8rem; font-weight: 900; line-height: 1; }
+            .block { padding: 14px; }
+            table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+            th, td { padding: 9px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+            th { background: #f8fafc; color: #334155; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; position: sticky; top: 0; }
+            .center { text-align: center; }
+            .nowrap { white-space: nowrap; }
+            .status { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; font-weight: 900; font-size: 0.74rem; white-space: nowrap; }
+            .status.ok { background: #dcfce7; color: #166534; }
+            .status.warn { background: #fef3c7; color: #92400e; }
+            .status.bad { background: #fee2e2; color: #991b1b; }
+            .status.info { background: #dbeafe; color: #1e40af; }
+            @media (max-width: 980px) {
+              .topbar { display: block; }
+              .actions { justify-content: flex-start; margin-top: 12px; }
+              .kpis { grid-template-columns: repeat(2, 1fr); }
+              table { font-size: 0.78rem; }
+            }
+            @media print {
+              body { background: #fff; }
+              .page { width: 100%; padding: 0; }
+              button { display: none; }
+              .kpi, .block { box-shadow: none; break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <main class="page">
+            <section class="topbar">
+              <div>
+                <h1>Visão lookahead médio prazo</h1>
+                <div class="meta">
+                  <strong>Filtros:</strong> ${valorHtml(filtrosReuniaoTexto())}<br>
+                  <strong>Atualização da planilha:</strong> ${valorHtml(ultimaAtualizacaoPlanilha)} | <strong>Gerado em:</strong> ${valorHtml(geradoEm)}
+                </div>
+              </div>
+              <div class="actions">
+                <div class="field">
+                  <label for="janela-lookahead">Janela</label>
+                  <select id="janela-lookahead">${opcoesJanela}</select>
+                </div>
+                <button onclick="window.print()">Imprimir / PDF</button>
+              </div>
+            </section>
+
+            <section class="kpis">
+              <article class="kpi"><div class="kpi-label">Meta Mês 1</div><div class="kpi-value" id="kpi-look-mes1">${paginaInicial.resumo.metaMes1}</div></article>
+              <article class="kpi"><div class="kpi-label">Meta Mês +1</div><div class="kpi-value" id="kpi-look-mes-prox">${paginaInicial.resumo.metaMesProximo}</div></article>
+              <article class="kpi"><div class="kpi-label">Itens Mês 1</div><div class="kpi-value" id="kpi-look-itens-mes1">${paginaInicial.resumo.itensMes1}</div></article>
+              <article class="kpi"><div class="kpi-label">Itens Mês +1</div><div class="kpi-value" id="kpi-look-itens">${paginaInicial.resumo.itensMesProximo}</div></article>
+              <article class="kpi"><div class="kpi-label">Restr. abertas</div><div class="kpi-value" id="kpi-look-restricoes">${paginaInicial.resumo.restricoesMesProximo}</div></article>
+              <article class="kpi"><div class="kpi-label">Sem análise</div><div class="kpi-value" id="kpi-look-sem-analise">${paginaInicial.resumo.semAnaliseMesProximo}</div></article>
+            </section>
+
+            <section class="block">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Janela</th>
+                    <th>ID</th>
+                    <th>Atividade</th>
+                    <th>Fornecedor</th>
+                    <th class="center">Peso ref.</th>
+                    <th class="center">Restr.</th>
+                    <th class="center">Planej.</th>
+                    <th>Preparação</th>
+                  </tr>
+                </thead>
+                <tbody id="linhas-lookahead">${paginaInicial.linhas}</tbody>
+              </table>
+            </section>
+          </main>
+          <script>
+            const paginasPorJanela = ${jsonSeguroParaScript(paginasPorJanela)};
+            const seletorJanela = document.getElementById("janela-lookahead");
+            const corpoTabela = document.getElementById("linhas-lookahead");
+            const kpiMes1 = document.getElementById("kpi-look-mes1");
+            const kpiMesProximo = document.getElementById("kpi-look-mes-prox");
+            const kpiItensMes1 = document.getElementById("kpi-look-itens-mes1");
+            const kpiItens = document.getElementById("kpi-look-itens");
+            const kpiRestricoes = document.getElementById("kpi-look-restricoes");
+            const kpiSemAnalise = document.getElementById("kpi-look-sem-analise");
+
+            function renderizarJanela() {
+              const pagina = paginasPorJanela[seletorJanela.value] || paginasPorJanela.Todos;
+              kpiMes1.textContent = pagina.resumo.metaMes1;
+              kpiMesProximo.textContent = pagina.resumo.metaMesProximo;
+              kpiItensMes1.textContent = pagina.resumo.itensMes1;
+              kpiItens.textContent = pagina.resumo.itensMesProximo;
+              kpiRestricoes.textContent = pagina.resumo.restricoesMesProximo;
+              kpiSemAnalise.textContent = pagina.resumo.semAnaliseMesProximo;
+              corpoTabela.innerHTML = pagina.linhas;
+            }
+
+            seletorJanela.addEventListener("change", renderizarJanela);
+          <\/script>
+        </body>
+        </html>`;
+
+      const novaAba = window.open("", "_blank");
+
+      if (!novaAba) {
+        alert("O navegador bloqueou a nova aba. Autorize pop-ups para abrir a visão lookahead.");
+        return;
+      }
+
+      novaAba.document.open();
+      novaAba.document.write(html);
+      novaAba.document.close();
+      novaAba.focus();
+    }
+
     // =========================================================
     // FUNÇÕES PARA FUTURA LEITURA DE CSV DO GOOGLE SHEETS
     // =========================================================
@@ -3098,6 +3608,8 @@
         restricoes: abas[CONFIG.abas.restricoes] || [],
         planoSemanal: abas[CONFIG.abas.planoSemanal] || [],
         efetivo: abas[CONFIG.abas.efetivo] || [],
+        project: abas[CONFIG.abas.project] || [],
+        vinculoMedioLongo: abas[CONFIG.abas.vinculoMedioLongo] || [],
         atualizacao: [{ ultimaAtualizacao: json.ultimaAtualizacao || json.atualizadoEm || "" }]
       };
     }
@@ -3181,13 +3693,15 @@
         mensal: brutos.planoMensal.length,
         restricoes: brutos.restricoes.length,
         semanal: brutos.planoSemanal.length,
-        efetivo: brutos.efetivo.length
+        efetivo: brutos.efetivo.length,
+        project: (brutos.project || []).length,
+        vinculo: (brutos.vinculoMedioLongo || []).length
       };
     }
 
     function resumoLinhas() {
       const c = ultimaContagemLinhas || {};
-      return `PM ${c.mensal || 0} | R ${c.restricoes || 0} | PS ${c.semanal || 0} | EF ${c.efetivo || 0}`;
+      return `PM ${c.mensal || 0} | R ${c.restricoes || 0} | PS ${c.semanal || 0} | EF ${c.efetivo || 0} | Project ${c.project || 0} | Lookahead ${c.vinculo || 0}`;
     }
 
     async function carregarDados() {
@@ -3216,15 +3730,17 @@
           const usandoGviz = Boolean(idPlanilhaEditavelValido()) && CONFIG.fontePreferencial !== "csvPublicado";
           ultimaFonteDados = usandoGviz ? "Google Sheets gviz" : "CSV publicado";
 
-          const [planoMensal, restricoes, planoSemanal, efetivo, atualizacao] = await Promise.all([
+          const [planoMensal, restricoes, planoSemanal, efetivo, project, vinculoMedioLongo, atualizacao] = await Promise.all([
             carregarAba("planoMensal"),
             carregarAba("restricoes"),
             carregarAba("planoSemanal"),
             carregarAba("efetivo"),
+            carregarAba("project"),
+            carregarAba("vinculoMedioLongo"),
             carregarAba("atualizacao")
           ]);
 
-          brutos = { planoMensal, restricoes, planoSemanal, efetivo, atualizacao };
+          brutos = { planoMensal, restricoes, planoSemanal, efetivo, project, vinculoMedioLongo, atualizacao };
         }
 
         ultimaContagemLinhas = contarLinhasCarregadas(brutos);
@@ -3285,8 +3801,70 @@
             trabalhadores: numero(campo(e, ["trabalhadores", "Trabalhadores", "efetivo", "Efetivo", "funcionarios", "funcionários", "Total", "total"]))
           })).filter(e => e.data || e.semana || e.fornecedor || e.disciplina || e.trabalhadores),
           diarioObra: [],
+          project: (brutos.project || []).map(p => {
+            const item = {
+              projectId: campo(p, ["Id", "id", "projectId"]),
+              resumo: campo(p, ["Resumo", "resumo"]),
+              atividade: campo(p, ["Nome da tarefa", "nome da tarefa", "atividade", "Atividade"]),
+              peso: numero(campo(p, ["Peso", "peso"])),
+              inicio: normalizarData(campo(p, ["Início", "inicio", "Inicio"])),
+              fim: normalizarData(campo(p, ["Término", "termino", "Termino", "fim", "Fim"])),
+              previstaInicio: numero(campo(p, ["%Prevista 30/04", "Prevista 30/04", "previstaInicio"])),
+              previstaFim: numero(campo(p, ["%Prevista 31/05", "Prevista 31/05", "previstaFim"])),
+              local: campo(p, ["Setor/Torre", "setor", "local"]),
+              fornecedor: campo(p, ["Empreiteiros", "fornecedor", "Fornecedor"]),
+              disciplina: campo(p, ["Serviço", "servico", "Disciplina", "disciplina"]),
+              macrosetor: campo(p, ["Macrosetor", "macrosetor"])
+            };
+            item.pacoteId = pacoteIdProject(item.projectId);
+            item.pesoReferencia = pesoReferenciaProject(item);
+            const janela = janelaLookahead(item.inicio);
+            item.janelaLookahead = janela?.id || "";
+            item.periodo = janela?.periodo || "";
+            return item;
+          }).filter(p => normalizarChave(p.resumo) === "nao" && p.janelaLookahead && p.pesoReferencia > 0.00000001),
+          vinculoMedioLongo: (brutos.vinculoMedioLongo || []).map(v => ({
+            janelaLookahead: campo(v, ["janelaLookahead", "janela", "Janela"]),
+            periodo: campo(v, ["periodo", "período", "Periodo"]),
+            projectId: campo(v, ["projectId", "Project ID", "idProject"]),
+            pacoteId: campo(v, ["pacoteId", "pacote id", "ID", "id"]),
+            atividade: campo(v, ["atividade", "Atividade", "nomeProject", "Nome da tarefa"]),
+            semana: campo(v, ["semanaPlanoMensal", "semana", "Semana"]),
+            local: campo(v, ["local", "Local"]),
+            fornecedor: campo(v, ["fornecedor", "Fornecedor"]),
+            disciplina: campo(v, ["disciplina", "Disciplina"]),
+            inicioProject: normalizarData(campo(v, ["inicioProject", "inicio", "Início"])),
+            fimProject: normalizarData(campo(v, ["fimProject", "fim", "Término"])),
+            pesoReferencia: numero(campo(v, ["pesoReferencia", "peso referência", "Peso Project"])),
+            pesoMedioPrazo: numero(campo(v, ["pesoMedioPrazo", "peso medio prazo", "Peso Plano Mensal"])),
+            existePlanoMensal: campo(v, ["existePlanoMensal", "existe plano mensal"]),
+            statusLPS: campo(v, ["statusLPS", "status lps"]),
+            aptoMedioPrazo: campo(v, ["aptoMedioPrazo", "apto medio prazo"]),
+            compromissosPlanejados: numero(campo(v, ["compromissosPlanejados", "compromissos planejados"])),
+            compromissosConcluidos: numero(campo(v, ["compromissosConcluidos", "compromissos concluidos"])),
+            ultimoStatusSemanal: campo(v, ["ultimoStatusSemanal", "ultimo status semanal"]),
+            causasNaoConclusao: campo(v, ["causasNaoConclusao", "causas nao conclusao", "causa"]),
+            restricoesAbertas: numero(campo(v, ["restricoesAbertas", "restricoes abertas"])),
+            restricoesRemovidas: numero(campo(v, ["restricoesRemovidas", "restricoes removidas"])),
+            statusPreparacao: campo(v, ["statusPreparacao", "status preparação", "status preparacao"]),
+            acaoSugerida: campo(v, ["acaoSugerida", "ação sugerida", "acao sugerida"])
+          })).filter(v => v.pacoteId || v.atividade),
           historicoPpc: calcularHistoricoPpc(brutos.planoSemanal)
         };
+
+        const pacotesPorIdLookahead = new Map(dados.pacotes.map(pacote => [pacote.id, pacote]));
+        const projectPorPacoteLookahead = new Map(dados.project.map(project => [project.pacoteId, project]));
+        dados.vinculoMedioLongo = dados.vinculoMedioLongo.map(item => {
+          const pacote = pacotesPorIdLookahead.get(item.pacoteId);
+          const project = projectPorPacoteLookahead.get(item.pacoteId);
+          return {
+            ...item,
+            semana: item.semana || pacote?.semana || "",
+            local: item.local || pacote?.local || project?.local || "",
+            fornecedor: item.fornecedor || pacote?.fornecedor || project?.fornecedor || "",
+            disciplina: item.disciplina || pacote?.disciplina || project?.disciplina || ""
+          };
+        });
 
         inicializarFiltros();
         renderDashboard();
@@ -3323,6 +3901,7 @@
       });
 
       qs("#btn-exportar").addEventListener("click", exportarVisaoCSV);
+      qs("#btn-visao-link").addEventListener("click", abrirVisaoMedioLongo);
       qs("#btn-visao-empreiteiros").addEventListener("click", abrirVisaoEmpreiteiros);
 
       qs("#btn-atualizar").addEventListener("click", async () => {
