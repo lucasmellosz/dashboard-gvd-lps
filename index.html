@@ -3746,6 +3746,12 @@
         }
       }
 
+      const dataHoraLocal = texto.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (dataHoraLocal) {
+        const [, ano, mes, dia, hora, minuto, segundo = "00"] = dataHoraLocal;
+        return `${dia}/${mes}/${ano} ${hora}:${minuto}:${segundo}`;
+      }
+
       return texto;
     }
 
