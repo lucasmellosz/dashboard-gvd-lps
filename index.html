@@ -3670,23 +3670,7 @@
       const base = String(CONFIG.appsScriptWebAppUrl || "").trim();
       if (!base) return null;
 
-      const url = adicionarCacheBuster(`${base}${base.includes("?") ? "&" : "?"}action=all`);
-      let json;
-
-      try {
-        json = await carregarAppsScriptJsonp(base, 45000);
-      } catch (erroJsonp) {
-        console.warn("Falha ao carregar Apps Script por JSONP; tentando fetch.", erroJsonp);
-        const resposta = await fetchComTimeout(url, { cache: "no-store", credentials: "omit" });
-        if (!resposta.ok) throw new Error(`Erro no Apps Script (${resposta.status}).`);
-
-        const texto = await resposta.text();
-        const inicio = texto.trim().slice(0, 80).toLowerCase();
-        if (inicio.startsWith("<!doctype") || inicio.startsWith("<html")) {
-          throw new Error("Apps Script retornou HTML em vez de JSON. Confira permissão da implantação.");
-        }
-        json = JSON.parse(texto);
-      }
+      const json = await carregarAppsScriptJsonp(base, 45000);
 
       if (json.ok === false) throw new Error(json.erro || "Apps Script retornou erro ao ler a planilha.");
 
