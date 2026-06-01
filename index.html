@@ -3676,6 +3676,7 @@
 
       const abas = json.abas || {};
       ultimaFonteDados = "Apps Script";
+      const ultimaAtualizacao = json.ultimaAtualizacao || json.atualizadoEm || "";
 
       return {
         planoMensal: json.planoMensal || abas[CONFIG.abas.planoMensal] || [],
@@ -3684,7 +3685,9 @@
         efetivo: json.efetivo || abas[CONFIG.abas.efetivo] || [],
         project: json.project || abas[CONFIG.abas.project] || [],
         vinculoMedioLongo: json.vinculoMedioLongo || abas[CONFIG.abas.vinculoMedioLongo] || [],
-        atualizacao: Array.isArray(json.atualizacao) && json.atualizacao.length
+        atualizacao: ultimaAtualizacao
+          ? [{ ultimaAtualizacao }]
+          : Array.isArray(json.atualizacao) && json.atualizacao.length
           ? json.atualizacao
           : [{ ultimaAtualizacao: json.ultimaAtualizacao || json.atualizadoEm || "" }]
       };
