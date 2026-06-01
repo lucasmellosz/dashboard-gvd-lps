@@ -3674,6 +3674,9 @@
       let json;
 
       try {
+        json = await carregarAppsScriptJsonp(base, 60000);
+      } catch (erroJsonp) {
+        console.warn("Falha ao carregar Apps Script por JSONP; tentando fetch.", erroJsonp);
         const resposta = await fetchComTimeout(url, { cache: "no-store", credentials: "omit" });
         if (!resposta.ok) throw new Error(`Erro no Apps Script (${resposta.status}).`);
 
@@ -3683,9 +3686,6 @@
           throw new Error("Apps Script retornou HTML em vez de JSON. Confira permissão da implantação.");
         }
         json = JSON.parse(texto);
-      } catch (erroFetch) {
-        console.warn("Falha ao carregar Apps Script por fetch; tentando JSONP.", erroFetch);
-        json = await carregarAppsScriptJsonp(base);
       }
 
       if (json.ok === false) throw new Error(json.erro || "Apps Script retornou erro ao ler a planilha.");
