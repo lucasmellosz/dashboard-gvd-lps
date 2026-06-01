@@ -902,7 +902,7 @@
 
       // Cole aqui a URL do Web App do Apps Script após publicar o script anexo.
       // Exemplo: https://script.google.com/macros/s/AKfycb.../exec
-      appsScriptWebAppUrl: "https://script.google.com/macros/s/AKfycbxR2QOl1C94RTyj0zIr5GLHQ9jBLKu1Tp1R3bm1JiY5bw42uj2EwULarJvStBgCxp4q2A/exec",
+      appsScriptWebAppUrl: "https://script.google.com/macros/s/AKfycbwVIISNxB12C9iDTSsS_gYqXXELbuIeMkuUtzhhB6aILTBEZMw-8iITY_tMEG8edzzD/exec",
 
       // Alternativa sem Apps Script: cole somente o ID da planilha editável do Google Sheets.
       // O ID fica na URL: https://docs.google.com/spreadsheets/d/ESTE_TEXTO_AQUI/edit
@@ -1148,7 +1148,17 @@
     }
 
     function pesoReferenciaProject(item) {
-      return numero(item.peso);
+      if (String(item.pesoLookaheadBruto || "").trim() !== "") {
+        return numero(item.pesoLookaheadBruto);
+      }
+
+      const peso = numero(item.peso);
+      const deltaPrevisto = Math.max(0, numero(item.previstaFim) - numero(item.previstaInicio));
+      if (normalizarChave(item.janelaLookahead) === "mes1" && deltaPrevisto > 0) {
+        return peso * deltaPrevisto / 100;
+      }
+
+      return peso;
     }
 
     function janelaLookahead(dataValor) {
@@ -1188,9 +1198,8 @@
     }
 
     function montarVinculosMedioLongo() {
-      if (dados.vinculoMedioLongo.length) return dados.vinculoMedioLongo;
-
-      const projectById = new Map(dados.project.map(item => [item.pacoteId, item]));
+      const fonteLookahead = dados.vinculoMedioLongo.length ? dados.vinculoMedioLongo : dados.project;
+      const projectById = new Map([...dados.project, ...fonteLookahead].map(item => [item.pacoteId, item]));
       const pacotesById = new Map(dados.pacotes.map(item => [item.id, item]));
 
       function montarItem(pacoteId, project, pacote, janelaPadrao) {
@@ -1208,14 +1217,14 @@
           projectId: project?.projectId || "",
           pacoteId,
           atividade: project?.atividade || pacoteRef?.atividade || "",
-          semana: pacoteRef?.semana || project?.janelaLookahead || "",
+          semana: pacoteRef?.semana || project?.semana || project?.janelaLookahead || "",
           local: pacoteRef?.local || project?.local || "",
           fornecedor: pacoteRef?.fornecedor || project?.fornecedor || "",
           disciplina: pacoteRef?.disciplina || project?.disciplina || "",
-          inicioProject: project?.inicio || pacoteRef?.inicio || "",
-          fimProject: project?.fim || pacoteRef?.fim || "",
+          inicioProject: project?.inicioProject || project?.inicio || pacoteRef?.inicio || "",
+          fimProject: project?.fimProject || project?.fim || pacoteRef?.fim || "",
           pesoReferencia: project?.pesoReferencia || pacoteRef?.peso || 0,
-          pesoMedioPrazo: pacoteRef?.peso || 0,
+          pesoMedioPrazo: pacoteRef?.peso || project?.pesoMedioPrazo || 0,
           existePlanoMensal: pacoteRef ? "Sim" : "Não",
           statusLPS: pacoteRef?.statusLPS || "",
           aptoMedioPrazo: pacoteRef && pacoteApto(pacoteRef) ? "Sim" : "Não",
@@ -1239,12 +1248,25 @@
         return item;
       }
 
+      if (dados.vinculoMedioLongo.length) {
+        return fonteLookahead
+          .filter(project => project.pacoteId || project.atividade)
+          .map(project => {
+            const janelaPadrao = JANELAS_LOOKAHEAD.find(janela => normalizarChave(janela.id) === normalizarChave(project.janelaLookahead));
+            return montarItem(project.pacoteId, project, pacotesById.get(project.pacoteId), janelaPadrao);
+          });
+      }
+
       const mesAtual = dados.pacotes.map(pacote => montarItem(pacote.id, projectById.get(pacote.id), pacote, JANELAS_LOOKAHEAD[0]));
-      const mesSeguinte = dados.project
+      const pacotesMesAtual = new Set(mesAtual.map(item => item.pacoteId));
+      const mesAtualExtras = fonteLookahead
+        .filter(project => project.janelaLookahead === "Mês 1" && !pacotesMesAtual.has(project.pacoteId))
+        .map(project => montarItem(project.pacoteId, project, pacotesById.get(project.pacoteId), JANELAS_LOOKAHEAD[0]));
+      const mesSeguinte = fonteLookahead
         .filter(project => project.janelaLookahead === "Mês 1+1")
         .map(project => montarItem(project.pacoteId, project, pacotesById.get(project.pacoteId), JANELAS_LOOKAHEAD[1]));
 
-      return [...mesAtual, ...mesSeguinte];
+      return [...mesAtual, ...mesAtualExtras, ...mesSeguinte];
     }
 
     function filtrarVinculosMedioLongo() {
@@ -1261,7 +1283,6 @@
       const mes1 = vinculos.filter(item => item.janelaLookahead === "Mês 1");
       const mesProximo = vinculos.filter(item => item.janelaLookahead === "Mês 1+1");
       const semAnalise = mesProximo.filter(item => numero(item.restricoesAbertas) === 0 && numero(item.restricoesRemovidas) === 0);
-
       return {
         metaMes1: somar(mes1, "pesoReferencia"),
         metaMesProximo: somar(mesProximo, "pesoReferencia"),
@@ -3811,16 +3832,24 @@
               fim: normalizarData(campo(p, ["Término", "termino", "Termino", "fim", "Fim"])),
               previstaInicio: numero(campo(p, ["%Prevista 30/04", "Prevista 30/04", "previstaInicio"])),
               previstaFim: numero(campo(p, ["%Prevista 31/05", "Prevista 31/05", "previstaFim"])),
+              pesoLookaheadBruto: campo(p, ["pesoLookahead", "peso lookahead", "Peso Lookahead"]),
               local: campo(p, ["Setor/Torre", "setor", "local"]),
               fornecedor: campo(p, ["Empreiteiros", "fornecedor", "Fornecedor"]),
               disciplina: campo(p, ["Serviço", "servico", "Disciplina", "disciplina"]),
               macrosetor: campo(p, ["Macrosetor", "macrosetor"])
             };
             item.pacoteId = pacoteIdProject(item.projectId);
+            const janelaPlanilha = campo(p, ["janelaLookahead", "janela lookahead", "Janela Lookahead"]);
+            const periodoPlanilha = campo(p, ["periodoLookahead", "periodo lookahead", "Periodo Lookahead"]);
+            const deltaPrevisto = Math.max(0, numero(item.previstaFim) - numero(item.previstaInicio));
+            const janela = janelaPlanilha
+              ? JANELAS_LOOKAHEAD.find(j => normalizarChave(j.id) === normalizarChave(janelaPlanilha))
+              : deltaPrevisto > 0
+                ? JANELAS_LOOKAHEAD[0]
+                : janelaLookahead(item.inicio);
+            item.janelaLookahead = janela?.id || janelaPlanilha || "";
+            item.periodo = periodoPlanilha || janela?.periodo || "";
             item.pesoReferencia = pesoReferenciaProject(item);
-            const janela = janelaLookahead(item.inicio);
-            item.janelaLookahead = janela?.id || "";
-            item.periodo = janela?.periodo || "";
             return item;
           }).filter(p => normalizarChave(p.resumo) === "nao" && p.janelaLookahead && p.pesoReferencia > 0.00000001),
           vinculoMedioLongo: (brutos.vinculoMedioLongo || []).map(v => ({
@@ -3829,7 +3858,7 @@
             projectId: campo(v, ["projectId", "Project ID", "idProject"]),
             pacoteId: campo(v, ["pacoteId", "pacote id", "ID", "id"]),
             atividade: campo(v, ["atividade", "Atividade", "nomeProject", "Nome da tarefa"]),
-            semana: campo(v, ["semanaPlanoMensal", "semana", "Semana"]),
+            semana: campo(v, ["semanaLookahead", "semana lookahead", "semanaPlanoMensal", "semana", "Semana"]),
             local: campo(v, ["local", "Local"]),
             fornecedor: campo(v, ["fornecedor", "Fornecedor"]),
             disciplina: campo(v, ["disciplina", "Disciplina"]),
@@ -3862,7 +3891,8 @@
             semana: item.semana || pacote?.semana || "",
             local: item.local || pacote?.local || project?.local || "",
             fornecedor: item.fornecedor || pacote?.fornecedor || project?.fornecedor || "",
-            disciplina: item.disciplina || pacote?.disciplina || project?.disciplina || ""
+            disciplina: item.disciplina || pacote?.disciplina || project?.disciplina || "",
+            pesoMedioPrazo: pacote?.peso || item.pesoMedioPrazo
           };
         });
 
