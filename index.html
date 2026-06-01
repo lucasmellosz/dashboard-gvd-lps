@@ -3674,7 +3674,7 @@
       let json;
 
       try {
-        json = await carregarAppsScriptJsonp(base, 60000);
+        json = await carregarAppsScriptJsonp(base, 45000);
       } catch (erroJsonp) {
         console.warn("Falha ao carregar Apps Script por JSONP; tentando fetch.", erroJsonp);
         const resposta = await fetchComTimeout(url, { cache: "no-store", credentials: "omit" });
@@ -3733,7 +3733,36 @@
         primeiraLinha.valor ||
         Object.values(primeiraLinha)[0];
 
-      return String(valor || "").trim();
+      return formatarDataHoraPainel(valor);
+    }
+
+    function formatarDataHoraPainel(valor) {
+      const texto = String(valor || "").trim();
+      if (!texto) return "";
+
+      const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+      if (br) {
+        const [, dia, mes, ano, hora = "00", minuto = "00", segundo = "00"] = br;
+        return `${dia.padStart(2, "0")}/${mes.padStart(2, "0")}/${ano} ${hora.padStart(2, "0")}:${minuto}:${segundo}`;
+      }
+
+      const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (iso) {
+        const data = new Date(texto);
+        if (!Number.isNaN(data.getTime())) {
+          return data.toLocaleString("pt-BR", {
+            timeZone: "America/Sao_Paulo",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          }).replace(",", "");
+        }
+      }
+
+      return texto;
     }
 
 
