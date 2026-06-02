@@ -739,8 +739,8 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">6. Restrições do mês seguinte</h2>
-            <p class="card-subtitle">Itens que precisam de análise antes de entrarem no curto prazo.</p>
+            <h2 class="card-title">6. Lookahead Mês +1 — restrições e análise</h2>
+            <p class="card-subtitle">Tarefas do mês seguinte com restrição aberta ou análise a antecipar.</p>
           </div>
         </div>
         <div class="scroll">
@@ -756,6 +756,12 @@
               </tr>
             </thead>
             <tbody id="tabela-vinculo"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" class="right">Total de itens encontrados</td>
+                <td id="total-vinculo-pendencias" class="center">0</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </article>
@@ -765,8 +771,8 @@
       <article class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">7. Controle de restrições</h2>
-            <p class="card-subtitle">Base para remoção proativa de impedimentos antes do plano semanal.</p>
+            <h2 class="card-title">7. Controle de restrições do Mês 1</h2>
+            <p class="card-subtitle">Restrições cadastradas para tarefas que compõem o lookahead do mês atual.</p>
           </div>
         </div>
         <div class="scroll">
@@ -784,6 +790,12 @@
               </tr>
             </thead>
             <tbody id="tabela-restricoes"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="7" class="right">Total de restrições listadas</td>
+                <td id="total-restricoes-mes1" class="center">0</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </article>
@@ -1527,10 +1539,18 @@
     function renderRestricoes() {
       const tbody = qs("#tabela-restricoes");
       limparElemento(tbody);
-      const restricoes = filtrarRestricoes();
+      const pacotesMes1 = new Set(
+        montarVinculosMedioLongo()
+          .filter(item => item.janelaLookahead === "Mês 1")
+          .map(item => item.pacoteId)
+          .filter(Boolean)
+      );
+      const restricoes = filtrarRestricoes().filter(r => pacotesMes1.has(r.pacoteId));
+      const totalRestricoes = qs("#total-restricoes-mes1");
+      if (totalRestricoes) totalRestricoes.textContent = restricoes.length;
 
       if (!restricoes.length) {
-        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhuma restrição encontrada.", className: "empty", colspan: "8" })]));
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhuma restrição cadastrada para tarefas do Mês 1.", className: "empty", colspan: "8" })]));
         return;
       }
 
@@ -1600,7 +1620,7 @@
         ]));
       });
 
-      const pendencias = vinculos
+      const todasPendencias = vinculos
         .filter(item =>
           item.janelaLookahead === "Mês 1+1" &&
           (normalizarChave(item.statusPreparacao).includes("antecipar") ||
@@ -1611,11 +1631,13 @@
           numero(b.restricoesAbertas) - numero(a.restricoesAbertas) ||
           String(a.inicioProject || "").localeCompare(String(b.inicioProject || ""), "pt-BR") ||
           String(a.atividade || "").localeCompare(String(b.atividade || ""), "pt-BR")
-        )
-        .slice(0, 60);
+        );
+      const pendencias = todasPendencias.slice(0, 60);
+      const totalPendencias = qs("#total-vinculo-pendencias");
+      if (totalPendencias) totalPendencias.textContent = todasPendencias.length;
 
       if (!pendencias.length) {
-        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhuma pendência de lookahead encontrada.", className: "empty", colspan: "6" })]));
+        tbody.appendChild(criar("tr", {}, [criar("td", { text: "Nenhuma tarefa do Mês +1 com restrição aberta ou análise a antecipar.", className: "empty", colspan: "6" })]));
         return;
       }
 
