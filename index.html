@@ -564,11 +564,169 @@
       .kanban { grid-template-columns: repeat(5, 80vw); }
     }
 
+    body.modo-impressao .scroll,
+    body.modo-impressao .kanban,
+    body.modo-impressao .kanban-card .kanban {
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+
+    body.modo-impressao .chart-box,
+    body.modo-impressao .chart-box.small {
+      height: 190px !important;
+    }
+
     @media print {
-      body { background: #fff; }
-      .button, .filters, .note { display: none; }
-      .card, .kpi-card { box-shadow: none; break-inside: avoid; }
-      .scroll { max-height: none; overflow: visible; }
+      @page { size: A4 landscape; margin: 8mm; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html, body {
+        width: auto;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+      }
+      body { font-size: 10px; }
+      .app {
+        max-width: none;
+        padding: 0;
+      }
+      .button, .filters, .note {
+        display: none !important;
+      }
+      .header {
+        grid-template-columns: 1fr;
+        align-items: start;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .header-title h1 { font-size: 20px; }
+      .header-title p { font-size: 11px; }
+      .header-actions {
+        justify-content: flex-start;
+        gap: 6px;
+      }
+      .pill {
+        padding: 4px 7px;
+        font-size: 9px;
+      }
+      .kpi-grid, .grid-2, .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr !important;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .kpi-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+      }
+      .card, .kpi-card {
+        box-shadow: none !important;
+        border: 1px solid #d7dee8;
+        break-inside: auto;
+        page-break-inside: auto;
+        overflow: visible !important;
+        padding: 10px;
+      }
+      .kpi-card {
+        min-height: auto;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .print-keep-together {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .card-header,
+      .card-header > div,
+      .card-title,
+      .card-subtitle {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .card-header,
+      .card-title {
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+      }
+      .card-subtitle,
+      .card-header + .scroll,
+      .card-header + .chart-box,
+      .card-header + .kanban,
+      .card-header + .link-kpis {
+        break-before: avoid !important;
+        page-break-before: avoid !important;
+      }
+      .card-header { margin-bottom: 8px; }
+      .card-title { font-size: 14px; }
+      .card-subtitle { font-size: 10px; }
+      .scroll,
+      .kanban,
+      .kanban-card .kanban {
+        height: auto !important;
+        max-height: none !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
+      .chart-box,
+      .chart-box.small {
+        height: 190px !important;
+        max-height: 190px !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      table {
+        width: 100% !important;
+        max-width: 100%;
+        border-collapse: collapse;
+        font-size: 8.5px;
+        page-break-inside: auto;
+      }
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+      tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      th, td {
+        padding: 4px 5px;
+        white-space: normal !important;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      .nowrap { white-space: normal !important; }
+      .kanban {
+        display: block !important;
+        border: 0 !important;
+        padding: 0 !important;
+      }
+      .kanban-col {
+        min-height: auto !important;
+        padding: 7px;
+        margin-bottom: 8px;
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+      .kanban-title {
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+      }
+      .kanban-title {
+        gap: 4px;
+        font-size: 10px;
+      }
+      .kanban-count {
+        min-width: 24px;
+        padding: 4px 6px;
+      }
+      .kanban-item {
+        padding: 7px;
+        margin-bottom: 6px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .kanban-item strong { font-size: 9px; }
+      .kanban-meta { font-size: 8px; }
+      canvas { max-width: 100% !important; }
     }
   </style>
 </head>
@@ -587,6 +745,7 @@
         <button class="button" id="btn-exportar">Exportar visão CSV</button>
         <button class="button" id="btn-visao-link">Visão lookahead</button>
         <button class="button" id="btn-visao-empreiteiros">Visão reunião PPC</button>
+        <button class="button" id="btn-imprimir-pdf">Imprimir PDF</button>
       </div>
     </section>
 
@@ -633,7 +792,7 @@
       <article class="kpi-card">
         <div class="kpi-label">Meta do período selecionado</div>
         <div class="kpi-value" id="kpi-meta-mes">0%</div>
-        <div class="kpi-help">Peso do Plano_Mensal nos filtros ativos.</div>
+        <div class="kpi-help">Peso concluído / meta do Plano_Mensal nos filtros ativos.</div>
       </article>
       <article class="kpi-card green">
         <div class="kpi-label">Pacotes aptos no período selecionado</div>
@@ -902,6 +1061,7 @@
     const CONFIG = {
       fonteDados: "sheets",
       atualizacaoAutomaticaMinutos: 1,
+      appsScriptTimeoutMs: 120000,
 
       // Preferência de leitura:
       // 1) appsScript: mais estável e sem depender do cache do "Publicar na Web".
@@ -915,7 +1075,7 @@
 
       // Alternativa sem Apps Script: cole somente o ID da planilha editável do Google Sheets.
       // O ID fica na URL: https://docs.google.com/spreadsheets/d/ESTE_TEXTO_AQUI/edit
-      planilhaIdEditavel: "",
+      planilhaIdEditavel: "11IhWhdCY16w4FMri0092QB9-NPKTVvgK2Jl0XfFLO9Q",
 
       abas: {
         planoMensal: "Plano_Mensal",
@@ -1448,15 +1608,17 @@
 
       const aptos = pacotes.filter(pacoteApto);
       const efetivoTotal = efetivo.reduce((acc, e) => acc + numero(e.trabalhadores), 0);
+      const metaPeriodo = somar(pacotes, "peso");
+      const metaConcluida = somar(pacotes.filter(p => normalizarChave(p.statusLPS) === "concluido"), "peso");
 
       qs("#kpi-ppc").textContent = percentual(ppc);
       qs("#kpi-ppc-pond").textContent = percentual(ppcPonderado);
-      qs("#kpi-meta-mes").textContent = percentual1(somar(pacotes, "peso"));
+      qs("#kpi-meta-mes").textContent = `${percentual1(metaConcluida)} / ${percentual1(metaPeriodo)}`;
       qs("#kpi-aptos").textContent = `${aptos.length}/${pacotes.length}`;
       qs("#kpi-restricoes").textContent = restricoesAbertas.length;
       qs("#kpi-vencidas").textContent = restricoesVencidas.length;
       qs("#kpi-efetivo").textContent = efetivoTotal;
-      qs("#total-peso-pacotes").textContent = percentual1(somar(pacotes, "peso"));
+      qs("#total-peso-pacotes").textContent = percentual1(metaPeriodo);
       qs("#total-peso-semanal").textContent = `${percentual1(pesoConcluido)} / ${percentual1(pesoPlanejado)}`;
     }
 
@@ -2262,12 +2424,56 @@
       requestAnimationFrame(ajustarAlturaKanban);
     }
 
+    function prepararModoImpressao() {
+      document.body.classList.add("modo-impressao");
+      document.querySelectorAll(".print-keep-together").forEach(card => {
+        card.classList.remove("print-keep-together");
+      });
+      document.querySelectorAll(".card").forEach(card => {
+        const temGrafico = card.querySelector(".chart-box");
+        const temTabelaRolavel = card.querySelector(".scroll");
+        if (temGrafico && !temTabelaRolavel) {
+          card.classList.add("print-keep-together");
+        }
+      });
+      const kanban = qs("#kanban");
+      if (kanban) {
+        kanban.style.height = "";
+        kanban.style.maxHeight = "";
+      }
+      requestAnimationFrame(() => {
+        Object.values(graficos).forEach(grafico => grafico?.resize?.());
+      });
+    }
+
+    function encerrarModoImpressao() {
+      document.body.classList.remove("modo-impressao");
+      document.querySelectorAll(".print-keep-together").forEach(card => {
+        card.classList.remove("print-keep-together");
+      });
+      requestAnimationFrame(ajustarAlturaKanban);
+    }
+
+    function imprimirPaginaPrincipalPDF() {
+      prepararModoImpressao();
+      requestAnimationFrame(() => {
+        Object.values(graficos).forEach(grafico => grafico?.resize?.());
+        window.print();
+      });
+    }
+
     function ajustarAlturaKanban() {
       const kanban = qs("#kanban");
       const kanbanCard = document.querySelector(".kanban-card");
       const efetivoCard = document.querySelector(".efetivo-card");
 
       if (!kanban || !kanbanCard || !efetivoCard) return;
+
+      if (document.body.classList.contains("modo-impressao")) {
+        kanban.style.height = "";
+        kanban.style.maxHeight = "";
+        return;
+      }
 
       if (window.matchMedia("(max-width: 1200px)").matches) {
         kanban.style.height = "";
@@ -3558,7 +3764,7 @@
       return `${url}${separador}${encodeURIComponent(nome)}=${encodeURIComponent(valor)}`;
     }
 
-    async function fetchComTimeout(url, opcoes = {}, tempoLimiteMs = 45000) {
+    async function fetchComTimeout(url, opcoes = {}, tempoLimiteMs = CONFIG.appsScriptTimeoutMs || 120000) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), tempoLimiteMs);
 
@@ -3574,7 +3780,7 @@
       }
     }
 
-    function carregarAppsScriptJsonp(base, tempoLimiteMs = 45000) {
+    function carregarAppsScriptJsonp(base, tempoLimiteMs = CONFIG.appsScriptTimeoutMs || 120000) {
       return new Promise((resolve, reject) => {
         const callback = `__gvdLps_${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const urlAction = `${base}${base.includes("?") ? "&" : "?"}action=all`;
@@ -3692,7 +3898,7 @@
       const base = String(CONFIG.appsScriptWebAppUrl || "").trim();
       if (!base) return null;
 
-      const json = await carregarAppsScriptJsonp(base, 45000);
+      const json = await carregarAppsScriptJsonp(base, CONFIG.appsScriptTimeoutMs || 120000);
 
       if (json.ok === false) throw new Error(json.erro || "Apps Script retornou erro ao ler a planilha.");
 
@@ -3858,8 +4064,17 @@
       try {
         let brutos = null;
 
+        let erroAppsScript = null;
+
         if (CONFIG.fontePreferencial === "appsScript") {
-          brutos = await carregarViaAppsScript();
+          try {
+            brutos = await carregarViaAppsScript();
+          } catch (erro) {
+            erroAppsScript = erro;
+            console.warn("Apps Script indisponível ou lento; tentando fallback por Google Sheets/CSV.", erro);
+            const possuiFallback = Boolean(idPlanilhaEditavelValido()) || Object.values(CONFIG.csvPublicado || {}).some(url => String(url || "").trim());
+            if (!possuiFallback) throw erro;
+          }
         }
 
         if (!brutos) {
@@ -4048,6 +4263,7 @@
       qs("#btn-exportar").addEventListener("click", exportarVisaoCSV);
       qs("#btn-visao-link").addEventListener("click", abrirVisaoMedioLongo);
       qs("#btn-visao-empreiteiros").addEventListener("click", abrirVisaoEmpreiteiros);
+      qs("#btn-imprimir-pdf").addEventListener("click", imprimirPaginaPrincipalPDF);
 
       qs("#btn-atualizar").addEventListener("click", async () => {
         const botao = qs("#btn-atualizar");
@@ -4065,6 +4281,8 @@
       });
 
       window.addEventListener("resize", () => requestAnimationFrame(ajustarAlturaKanban));
+      window.addEventListener("beforeprint", prepararModoImpressao);
+      window.addEventListener("afterprint", encerrarModoImpressao);
     }
 
     registrarEventos();
